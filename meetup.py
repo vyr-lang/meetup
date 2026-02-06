@@ -300,6 +300,7 @@ def ask_hand_raise(
     log: str,
     token: Optional[str],
 ) -> bool:
+    print(f"[debug] calling {agent.name} for hand-raise", flush=True)
     prompt = textwrap.dedent(
         f"""
         You are {agent.name}, a participant in the Vyr meeting for {ctx.mailing_id}.
@@ -314,6 +315,7 @@ def ask_hand_raise(
         """
     ).strip()
     response = provider.request(agent, prompt, token)
+    print(f"[debug] completed hand-raise for {agent.name}", flush=True)
     match = HAND_RAISE_PATTERN.search(response.text)
     return bool(match and match.group(1).lower() == "yes")
 
@@ -326,6 +328,7 @@ def ask_to_speak(
     log: str,
     token: Optional[str],
 ) -> AgentResponse:
+    print(f"[debug] calling {agent.name} to speak", flush=True)
     prompt = textwrap.dedent(
         f"""
         You are {agent.name}, a participant in the Vyr meeting for {ctx.mailing_id}.
@@ -337,7 +340,9 @@ def ask_to_speak(
         {log}
         """
     ).strip()
-    return provider.request(agent, prompt, token)
+    response = provider.request(agent, prompt, token)
+    print(f"[debug] completed response from {agent.name}", flush=True)
+    return response
 
 
 def chair_summary(
@@ -348,6 +353,7 @@ def chair_summary(
     log: str,
     token: Optional[str],
 ) -> AgentResponse:
+    print(f"[debug] calling {chair.name} for chair summary", flush=True)
     prompt = textwrap.dedent(
         f"""
         You are {chair.name}, chairing the Vyr meeting for {ctx.mailing_id}.
@@ -359,7 +365,9 @@ def chair_summary(
         {log}
         """
     ).strip()
-    return provider.request(chair, prompt, token)
+    response = provider.request(chair, prompt, token)
+    print(f"[debug] completed chair summary for {chair.name}", flush=True)
+    return response
 
 
 def write_notes(path: str, ctx: MeetingContext, messages: List[Dict[str, str]]) -> None:
@@ -434,12 +442,14 @@ def run_meeting(ctx: MeetingContext, agents: List[AgentConfig], tokens: Dict[str
             token = resolve_token(agent, tokens)
             response = ask_to_speak(provider, agent, ctx, agenda_item, log, token)
             messages.append({"speaker": agent.name, "text": response.text})
+            print(f"\n[{agent.name}]\n{response.text}\n", flush=True)
             log = build_context_log(messages, ctx.context_limit)
 
         chair_provider = provider_map[chair_agent.provider]
         chair_token = resolve_token(chair_agent, tokens)
         summary = chair_summary(chair_provider, chair_agent, ctx, agenda_item, log, chair_token)
         messages.append({"speaker": f"{chair_name} (Chair Summary)", "text": summary.text})
+        print(f"\n[{chair_name} (Chair Summary)]\n{summary.text}\n", flush=True)
 
     write_notes(ctx.notes_path, ctx, messages)
 
