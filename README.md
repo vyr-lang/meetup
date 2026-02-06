@@ -50,6 +50,8 @@ Web search is enabled by default via the xAI `web_search` tool.
 Use `"provider": "claude"` with `"model": "claude-opus-4-6"` (or another Claude model). The token can come from
 `--keys` using the agent name (e.g., `"Claude"`) or from `ANTHROPIC_API_KEY`. Requires `anthropic` installed in the venv:
 `/home/zos/meetup/.venv/bin/python -m pip install anthropic`.
+Web search is enabled by default via the Claude `web_search` tool, but it only works for supported models and requires
+org-level enablement in Anthropic Console.
 
 ## Notes
 - No API keys are stored in the repo. Use environment variables or a keys JSON file referenced by `--keys`.
