@@ -131,6 +131,7 @@ class OpenAIProvider(AgentProvider):
             model=model,
             input=prompt,
             previous_response_id=previous_response_id,
+            tools=[{"type": "web_search"}],
         )
         if getattr(response, "id", None):
             self._previous_response_ids[agent.name] = response.id
@@ -150,6 +151,7 @@ class GeminiProvider(AgentProvider):
 
         try:
             from google import genai
+            from google.genai import types
         except ImportError as exc:
             raise RuntimeError(
                 "google-genai is required for the Gemini provider. Install in the venv with: "
@@ -162,7 +164,12 @@ class GeminiProvider(AgentProvider):
         if chat is None:
             chat = client.chats.create(model=model)
             self._chats[agent.name] = chat
-        response = chat.send_message(prompt)
+        response = chat.send_message(
+            prompt,
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())]
+            ),
+        )
         text = extract_gemini_text(response)
         return AgentResponse(agent=agent.name, text=text)
 
