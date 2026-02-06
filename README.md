@@ -47,7 +47,7 @@ using the agent name (e.g., `"Grok 4"`) or from `XAI_API_KEY`. Requires `xai-sdk
 Web search is enabled by default via the xAI `web_search` tool.
 
 ## Claude provider
-Use `"provider": "claude"` with `"model": "claude-3-5-sonnet-latest"` (or another Claude model). The token can come from
+Use `"provider": "claude"` with `"model": "claude-opus-4-6"` (or another Claude model). The token can come from
 `--keys` using the agent name (e.g., `"Claude"`) or from `ANTHROPIC_API_KEY`. Requires `anthropic` installed in the venv:
 `/home/zos/meetup/.venv/bin/python -m pip install anthropic`.
 

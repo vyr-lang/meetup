@@ -225,7 +225,7 @@ class ClaudeProvider(AgentProvider):
                 "/home/zos/meetup/.venv/bin/python -m pip install anthropic"
             ) from exc
 
-        model = agent.model or "claude-3-5-sonnet-latest"
+        model = agent.model or "claude-opus-4-6"
         client = anthropic.Anthropic(api_key=token)
         response = client.messages.create(
             model=model,
