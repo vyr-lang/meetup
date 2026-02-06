@@ -142,6 +142,7 @@ class OpenAIProvider(AgentProvider):
 class GeminiProvider(AgentProvider):
     def __init__(self) -> None:
         self._chats: Dict[str, Any] = {}
+        self._client: Optional[Any] = None
 
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not token:
@@ -159,7 +160,9 @@ class GeminiProvider(AgentProvider):
             ) from exc
 
         model = agent.model or "gemini-3-pro-preview"
-        client = genai.Client(api_key=token)
+        if self._client is None:
+            self._client = genai.Client(api_key=token)
+        client = self._client
         chat = self._chats.get(agent.name)
         if chat is None:
             chat = client.chats.create(model=model)
