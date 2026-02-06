@@ -246,7 +246,7 @@ class ClaudeProvider(AgentProvider):
         }
         if model not in supported_web_search:
             print(
-                f\"[warn] Claude web_search may not be supported for model '{model}'.\",
+                f"[warn] Claude web_search may not be supported for model '{model}'.",
                 flush=True,
             )
         client = anthropic.Anthropic(
