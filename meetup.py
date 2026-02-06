@@ -113,40 +113,18 @@ class OpenAIProvider(AgentProvider):
                 f"Missing auth token for {agent.name}. Provide --keys or set ${agent.auth_env}."
             )
 
-        model = agent.model or "gpt-5.2"
-        payload = {
-            "model": model,
-            "input": prompt,
-        }
-        data = json.dumps(payload).encode("utf-8")
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
-
-        request = urllib.request.Request(
-            "https://api.openai.com/v1/responses",
-            data=data,
-            headers=headers,
-            method="POST",
-        )
         try:
-            with urllib.request.urlopen(request, timeout=60) as response:
-                body = response.read().decode("utf-8")
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
+            from openai import OpenAI
+        except ImportError as exc:
             raise RuntimeError(
-                f"OpenAI API error: {exc.code} {exc.reason}. {detail}"
+                "openai is required for the OpenAI provider. Install in the venv with: "
+                "/home/zos/meetup/.venv/bin/python -m pip install openai"
             ) from exc
-        except urllib.error.URLError as exc:
-            raise RuntimeError(f"Failed to reach OpenAI API: {exc.reason}") from exc
 
-        try:
-            parsed = json.loads(body)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Unexpected OpenAI response: {body}") from exc
-
-        text = extract_openai_text(parsed)
+        model = agent.model or "gpt-5.2"
+        client = OpenAI(api_key=token)
+        response = client.responses.create(model=model, input=prompt)
+        text = extract_openai_text(response)
         return AgentResponse(agent=agent.name, text=text)
 
 
@@ -157,43 +135,18 @@ class GeminiProvider(AgentProvider):
                 f"Missing auth token for {agent.name}. Provide --keys or set ${agent.auth_env}."
             )
 
-        model = agent.model or "gemini-3-pro-preview"
-        url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{model}:generateContent"
-        )
-        payload = {
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [{"text": prompt}],
-                }
-            ]
-        }
-        data = json.dumps(payload).encode("utf-8")
-        headers = {
-            "x-goog-api-key": token,
-            "Content-Type": "application/json",
-        }
-
-        request = urllib.request.Request(url, data=data, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(request, timeout=60) as response:
-                body = response.read().decode("utf-8")
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
+            from google import genai
+        except ImportError as exc:
             raise RuntimeError(
-                f"Gemini API error: {exc.code} {exc.reason}. {detail}"
+                "google-genai is required for the Gemini provider. Install in the venv with: "
+                "/home/zos/meetup/.venv/bin/python -m pip install google-genai"
             ) from exc
-        except urllib.error.URLError as exc:
-            raise RuntimeError(f"Failed to reach Gemini API: {exc.reason}") from exc
 
-        try:
-            parsed = json.loads(body)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(f"Unexpected Gemini response: {body}") from exc
-
-        text = extract_gemini_text(parsed)
+        model = agent.model or "gemini-3-pro-preview"
+        client = genai.Client(api_key=token)
+        response = client.models.generate_content(model=model, contents=prompt)
+        text = extract_gemini_text(response)
         return AgentResponse(agent=agent.name, text=text)
 
 
@@ -223,28 +176,18 @@ class GrokProvider(AgentProvider):
         return AgentResponse(agent=agent.name, text=content.strip())
 
 
-def extract_gemini_text(payload: Dict[str, Any]) -> str:
-    candidates = payload.get("candidates", [])
-    if not candidates:
-        return ""
-    parts = candidates[0].get("content", {}).get("parts", [])
-    if not parts:
-        return ""
-    return str(parts[0].get("text", "")).strip()
+def extract_gemini_text(response: Any) -> str:
+    text = getattr(response, "text", None)
+    if isinstance(text, str):
+        return text.strip()
+    return ""
 
 
-def extract_openai_text(payload: Dict[str, Any]) -> str:
-    if isinstance(payload.get("output_text"), str):
-        return payload["output_text"].strip()
-
-    chunks: List[str] = []
-    for item in payload.get("output", []):
-        if item.get("type") != "message":
-            continue
-        for content in item.get("content", []):
-            if content.get("type") == "output_text" and isinstance(content.get("text"), str):
-                chunks.append(content["text"])
-    return "\n".join(chunks).strip()
+def extract_openai_text(response: Any) -> str:
+    output_text = getattr(response, "output_text", None)
+    if isinstance(output_text, str):
+        return output_text.strip()
+    return ""
 
 
 PROVIDERS: Dict[str, AgentProvider] = {
