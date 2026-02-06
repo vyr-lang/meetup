@@ -170,7 +170,10 @@ class GeminiProvider(AgentProvider):
         response = chat.send_message(
             prompt,
             config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())]
+                tools=[
+                    types.Tool(google_search=types.GoogleSearch()),
+                    types.Tool(url_context=types.UrlContext()),
+                ]
             ),
         )
         text = extract_gemini_text(response)

@@ -38,7 +38,7 @@ Web search is enabled by default via the Responses API `web_search` tool.
 Use `"provider": "gemini"` with `"model": "gemini-3-pro-preview"` (or another Gemini model). The token can come from
 `--keys` using the agent name (e.g., `"Gemini 3 Pro"`) or from `GEMINI_API_KEY`. Uses the official Google Gen AI SDK.
 Gemini chat sessions retain history but still send full history each turn.
-Google Search grounding is enabled by default via `google_search` tools.
+Google Search grounding and URL Context fetching are enabled by default via `google_search` and `url_context` tools.
 
 ## Grok provider
 Use `"provider": "grok"` with `"model": "grok-4-latest"` (or another Grok model). The token can come from `--keys`
