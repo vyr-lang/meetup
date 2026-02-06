@@ -1,0 +1,25 @@
+{
+  "agents": [
+    {
+      "name": "ChatGPT 5.2",
+      "role": "chair",
+      "provider": "openai",
+      "auth_env": "OPENAI_API_KEY",
+      "model": "gpt-5.2"
+    },
+    {
+      "name": "Gemini 3 Pro",
+      "role": "participant",
+      "provider": "gemini",
+      "auth_env": "GEMINI_API_KEY",
+      "model": "gemini-3-pro-preview"
+    },
+    {
+      "name": "Grok 4",
+      "role": "participant",
+      "provider": "grok",
+      "auth_env": "XAI_API_KEY",
+      "model": "grok-4-latest"
+    }
+  ]
+}
