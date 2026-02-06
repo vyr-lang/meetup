@@ -187,6 +187,7 @@ class GrokProvider(AgentProvider):
         try:
             from xai_sdk import Client
             from xai_sdk.chat import user
+            from xai_sdk.tools import web_search
         except ImportError as exc:
             raise RuntimeError(
                 "xai-sdk is required for Grok. Install it in the venv with: "
@@ -197,7 +198,7 @@ class GrokProvider(AgentProvider):
         chat = self._chats.get(agent.name)
         if chat is None:
             client = Client(api_key=token, timeout=60)
-            chat = client.chat.create(model=model)
+            chat = client.chat.create(model=model, tools=[web_search()])
             self._chats[agent.name] = chat
         chat.append(user(prompt))
         response = chat.sample()

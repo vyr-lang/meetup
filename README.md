@@ -44,6 +44,7 @@ Google Search grounding is enabled by default via `google_search` tools.
 Use `"provider": "grok"` with `"model": "grok-4-latest"` (or another Grok model). The token can come from `--keys`
 using the agent name (e.g., `"Grok 4"`) or from `XAI_API_KEY`. Requires `xai-sdk` installed in the venv:
 `/home/zos/meetup/.venv/bin/python -m pip install xai-sdk`.
+Web search is enabled by default via the xAI `web_search` tool.
 
 ## Notes
 - No API keys are stored in the repo. Use environment variables or a keys JSON file referenced by `--keys`.
