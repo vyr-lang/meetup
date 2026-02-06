@@ -53,7 +53,7 @@ class AgentProvider:
 
 
 class SimpleHttpProvider(AgentProvider):
-    def request(self, agent: AgentConfig, prompt: str) -> AgentResponse:
+    def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not agent.endpoint:
             raise ValueError(f"Agent {agent.name} is missing endpoint")
 
@@ -71,10 +71,9 @@ class SimpleHttpProvider(AgentProvider):
         headers.update(agent.extra_headers or {})
 
         if agent.auth_env:
-            token = os.environ.get(agent.auth_env)
             if not token:
                 raise RuntimeError(
-                    f"Missing auth token for {agent.name}. Set ${agent.auth_env}."
+                    f"Missing auth token for {agent.name}. Provide --keys or set ${agent.auth_env}."
                 )
             headers["Authorization"] = f"Bearer {token}"
 
@@ -97,7 +96,7 @@ class SimpleHttpProvider(AgentProvider):
 
 
 class MockProvider(AgentProvider):
-    def request(self, agent: AgentConfig, prompt: str) -> AgentResponse:
+    def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         text = textwrap.dedent(
             f"""
             RAISE: yes
@@ -149,7 +148,14 @@ def build_context_log(messages: List[Dict[str, str]], limit: int) -> str:
     return "\n".join(f"{m['speaker']}: {m['text']}" for m in tail)
 
 
-def ask_hand_raise(provider: AgentProvider, agent: AgentConfig, ctx: MeetingContext, agenda_item: str, log: str) -> bool:
+def ask_hand_raise(
+    provider: AgentProvider,
+    agent: AgentConfig,
+    ctx: MeetingContext,
+    agenda_item: str,
+    log: str,
+    token: Optional[str],
+) -> bool:
     prompt = textwrap.dedent(
         f"""
         You are {agent.name}, a participant in the Vyr meeting for {ctx.mailing_id}.
@@ -163,12 +169,19 @@ def ask_hand_raise(provider: AgentProvider, agent: AgentConfig, ctx: MeetingCont
         {log}
         """
     ).strip()
-    response = provider.request(agent, prompt)
+    response = provider.request(agent, prompt, token)
     match = HAND_RAISE_PATTERN.search(response.text)
     return bool(match and match.group(1).lower() == "yes")
 
 
-def ask_to_speak(provider: AgentProvider, agent: AgentConfig, ctx: MeetingContext, agenda_item: str, log: str) -> AgentResponse:
+def ask_to_speak(
+    provider: AgentProvider,
+    agent: AgentConfig,
+    ctx: MeetingContext,
+    agenda_item: str,
+    log: str,
+    token: Optional[str],
+) -> AgentResponse:
     prompt = textwrap.dedent(
         f"""
         You are {agent.name}, a participant in the Vyr meeting for {ctx.mailing_id}.
@@ -180,10 +193,17 @@ def ask_to_speak(provider: AgentProvider, agent: AgentConfig, ctx: MeetingContex
         {log}
         """
     ).strip()
-    return provider.request(agent, prompt)
+    return provider.request(agent, prompt, token)
 
 
-def chair_summary(provider: AgentProvider, chair: AgentConfig, ctx: MeetingContext, agenda_item: str, log: str) -> AgentResponse:
+def chair_summary(
+    provider: AgentProvider,
+    chair: AgentConfig,
+    ctx: MeetingContext,
+    agenda_item: str,
+    log: str,
+    token: Optional[str],
+) -> AgentResponse:
     prompt = textwrap.dedent(
         f"""
         You are {chair.name}, chairing the Vyr meeting for {ctx.mailing_id}.
@@ -195,7 +215,7 @@ def chair_summary(provider: AgentProvider, chair: AgentConfig, ctx: MeetingConte
         {log}
         """
     ).strip()
-    return provider.request(chair, prompt)
+    return provider.request(chair, prompt, token)
 
 
 def write_notes(path: str, ctx: MeetingContext, messages: List[Dict[str, str]]) -> None:
@@ -211,7 +231,26 @@ def write_notes(path: str, ctx: MeetingContext, messages: List[Dict[str, str]]) 
             handle.write(f"{msg['text']}\n")
 
 
-def run_meeting(ctx: MeetingContext, agents: List[AgentConfig]) -> None:
+def load_tokens(path: Optional[str]) -> Dict[str, str]:
+    if not path:
+        return {}
+    with open(path, "r", encoding="utf-8") as handle:
+        raw = json.load(handle)
+    tokens = raw.get("tokens", {})
+    if not isinstance(tokens, dict):
+        raise ValueError("keys file must contain a 'tokens' object")
+    return {str(k): str(v) for k, v in tokens.items()}
+
+
+def resolve_token(agent: AgentConfig, tokens: Dict[str, str]) -> Optional[str]:
+    if agent.name in tokens:
+        return tokens[agent.name]
+    if agent.auth_env:
+        return os.environ.get(agent.auth_env)
+    return None
+
+
+def run_meeting(ctx: MeetingContext, agents: List[AgentConfig], tokens: Dict[str, str]) -> None:
     if not agents:
         raise RuntimeError("No agents configured.")
 
@@ -233,7 +272,8 @@ def run_meeting(ctx: MeetingContext, agents: List[AgentConfig]) -> None:
                 raise RuntimeError(f"Unknown provider: {agent.provider}")
             if agent.name == chair_name:
                 continue
-            if ask_hand_raise(provider, agent, ctx, agenda_item, log):
+            token = resolve_token(agent, tokens)
+            if ask_hand_raise(provider, agent, ctx, agenda_item, log, token):
                 raised.append(agent)
 
         if not raised:
@@ -241,12 +281,14 @@ def run_meeting(ctx: MeetingContext, agents: List[AgentConfig]) -> None:
 
         for agent in raised:
             provider = provider_map[agent.provider]
-            response = ask_to_speak(provider, agent, ctx, agenda_item, log)
+            token = resolve_token(agent, tokens)
+            response = ask_to_speak(provider, agent, ctx, agenda_item, log, token)
             messages.append({"speaker": agent.name, "text": response.text})
             log = build_context_log(messages, ctx.context_limit)
 
         chair_provider = provider_map[chair_agent.provider]
-        summary = chair_summary(chair_provider, chair_agent, ctx, agenda_item, log)
+        chair_token = resolve_token(chair_agent, tokens)
+        summary = chair_summary(chair_provider, chair_agent, ctx, agenda_item, log, chair_token)
         messages.append({"speaker": f"{chair_name} (Chair Summary)", "text": summary.text})
 
     write_notes(ctx.notes_path, ctx, messages)
@@ -261,6 +303,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--chair", default=None, help="Name of chair agent")
     parser.add_argument("--context-limit", type=int, default=10, help="Number of prior messages to include")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for deterministic ordering")
+    parser.add_argument("--keys", default=None, help="Path to JSON file containing per-agent tokens")
     return parser.parse_args()
 
 
@@ -271,6 +314,7 @@ def main() -> int:
 
     agents = load_agents(args.agents)
     chair = resolve_chair(agents, args.chair)
+    tokens = load_tokens(args.keys)
 
     ctx = MeetingContext(
         mailing_id=args.mailing,
@@ -281,7 +325,7 @@ def main() -> int:
         seed=args.seed,
     )
 
-    run_meeting(ctx, agents)
+    run_meeting(ctx, agents, tokens)
     print(f"Meeting complete. Notes written to {args.notes}")
     return 0
 
