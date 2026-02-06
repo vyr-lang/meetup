@@ -244,7 +244,10 @@ class ClaudeProvider(AgentProvider):
                 f\"[warn] Claude web_search may not be supported for model '{model}'.\",
                 flush=True,
             )
-        client = anthropic.Anthropic(api_key=token)
+        client = anthropic.Anthropic(
+            api_key=token,
+            default_headers={"anthropic-beta": "web-fetch-2025-09-10"},
+        )
         response = client.messages.create(
             model=model,
             max_tokens=500,
@@ -253,7 +256,12 @@ class ClaudeProvider(AgentProvider):
                     "type": "web_search_20250305",
                     "name": "web_search",
                     "max_uses": 5,
-                }
+                },
+                {
+                    "type": "web_fetch_20250910",
+                    "name": "web_fetch",
+                    "max_uses": 5,
+                },
             ],
             messages=[{"role": "user", "content": prompt}],
         )
