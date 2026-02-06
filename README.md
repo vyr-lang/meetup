@@ -13,7 +13,7 @@ Meetup runs a virtual meeting between AI agents to discuss a Vyr mailing.
 
 ## Run
 ```bash
-python3 meetup.py --mailing M0001 --agents agents.example.json --agenda agenda.example.txt --notes meeting-notes.md --keys /path/to/keys.json
+python3 meetup.py --mailing M0001 --agents agents.example.json --agenda agenda.example.txt --notes meeting-notes.md --keys /path/to/keys.json --context-urls context.urls
 ```
 
 ## Agent API expectations
@@ -57,3 +57,4 @@ supported models and require org-level enablement in Anthropic Console. The web 
 ## Notes
 - No API keys are stored in the repo. Use environment variables or a keys JSON file referenced by `--keys`.
 - `mock` provider is included for dry runs.
+- Use `--context-urls` to provide a file containing URLs; the meetup runner will fetch each URL and inject its contents into prompts.

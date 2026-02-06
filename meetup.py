@@ -13,6 +13,7 @@ import sys
 import textwrap
 import urllib.error
 import urllib.request
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -45,6 +46,7 @@ class MeetingContext:
     notes_path: str
     context_limit: int
     seed: Optional[int]
+    source_context: str
 
 
 class AgentProvider:
@@ -332,6 +334,37 @@ def build_context_log(messages: List[Dict[str, str]], limit: int) -> str:
     return "\n".join(f"{m['speaker']}: {m['text']}" for m in tail)
 
 
+def load_url_context(path: Optional[str]) -> str:
+    if not path:
+        return ""
+    url_file = Path(path)
+    if not url_file.exists():
+        raise FileNotFoundError(f"URL context file not found: {path}")
+    urls = [line.strip() for line in url_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if not urls:
+        return ""
+
+    blocks = []
+    for url in urls:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "meetup/1.0"})
+            with urllib.request.urlopen(req, timeout=30) as response:
+                body = response.read().decode("utf-8", errors="replace")
+        except Exception as exc:
+            body = f"[error] failed to fetch: {exc}"
+        blocks.append(
+            "\n".join(
+                [
+                    "----- BEGIN SOURCE -----",
+                    f"URL: {url}",
+                    body,
+                    "----- END SOURCE -----",
+                ]
+            )
+        )
+    return "\n\n".join(blocks)
+
+
 def ask_hand_raise(
     provider: AgentProvider,
     agent: AgentConfig,
@@ -345,6 +378,9 @@ def ask_hand_raise(
         f"""
         You are {agent.name}, a participant in the Vyr meeting for {ctx.mailing_id}.
         Agenda item: {agenda_item}
+
+        Sources:
+        {ctx.source_context}
 
         Respond with:
         - A line 'RAISE: yes' or 'RAISE: no'
@@ -376,6 +412,9 @@ def ask_to_speak(
 
         Speak concisely (max 180 words). Provide concrete points and, if applicable, cite paper numbers.
 
+        Sources:
+        {ctx.source_context}
+
         Recent context:
         {log}
         """
@@ -400,6 +439,9 @@ def chair_summary(
         Agenda item: {agenda_item}
 
         Summarize the discussion in 5-8 bullet points. Note decisions, open questions, and action items.
+
+        Sources:
+        {ctx.source_context}
 
         Recent context:
         {log}
@@ -507,6 +549,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--context-limit", type=int, default=10, help="Number of prior messages to include")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for deterministic ordering")
     parser.add_argument("--keys", default=None, help="Path to JSON file containing per-agent tokens")
+    parser.add_argument(
+        "--context-urls",
+        default=None,
+        help="Path to a file containing URLs to fetch and inject into prompts",
+    )
     return parser.parse_args()
 
 
@@ -518,6 +565,7 @@ def main() -> int:
     agents = load_agents(args.agents)
     chair = resolve_chair(agents, args.chair)
     tokens = load_tokens(args.keys)
+    source_context = load_url_context(args.context_urls)
 
     ctx = MeetingContext(
         mailing_id=args.mailing,
@@ -526,6 +574,7 @@ def main() -> int:
         notes_path=args.notes,
         context_limit=args.context_limit,
         seed=args.seed,
+        source_context=source_context,
     )
 
     run_meeting(ctx, agents, tokens)
