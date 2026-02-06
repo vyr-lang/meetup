@@ -399,6 +399,7 @@ def run_meeting(ctx: MeetingContext, agents: List[AgentConfig], tokens: Dict[str
         random.seed(ctx.seed)
 
     for agenda_item in ctx.agenda:
+        print(f"\n=== Agenda Item ===\n{agenda_item}\n", flush=True)
         log = build_context_log(messages, ctx.context_limit)
         raised: List[AgentConfig] = []
         for agent in agents:
