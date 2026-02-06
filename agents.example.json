@@ -1,0 +1,25 @@
+{
+  "agents": [
+    {
+      "name": "ChatGPT 5.2",
+      "role": "chair",
+      "provider": "simple_http",
+      "endpoint": "https://api.example.com/agent/chatgpt52",
+      "auth_env": "VYR_CHATGPT52_TOKEN",
+      "model": "chatgpt-5.2"
+    },
+    {
+      "name": "Codex 5.2",
+      "role": "participant",
+      "provider": "simple_http",
+      "endpoint": "https://api.example.com/agent/codex52",
+      "auth_env": "VYR_CODEX52_TOKEN",
+      "model": "codex-5.2"
+    },
+    {
+      "name": "Mock Agent",
+      "role": "participant",
+      "provider": "mock"
+    }
+  ]
+}
