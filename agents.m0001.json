@@ -20,6 +20,27 @@
       "provider": "grok",
       "auth_env": "XAI_API_KEY",
       "model": "grok-4-latest"
+    },
+    {
+      "name": "Claude",
+      "role": "participant",
+      "provider": "claude",
+      "auth_env": "ANTHROPIC_API_KEY",
+      "model": "claude-opus-4-6"
+    },
+    {
+      "name": "DeepSeek",
+      "role": "participant",
+      "provider": "deepseek",
+      "auth_env": "DEEPSEEK_API_KEY",
+      "model": "deepseek-chat"
+    },
+    {
+      "name": "Mistral",
+      "role": "participant",
+      "provider": "mistral",
+      "auth_env": "MISTRAL_API_KEY",
+      "model": "mistral-medium-2505"
     }
   ]
 }
