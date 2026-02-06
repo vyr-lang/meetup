@@ -210,6 +210,35 @@ class GrokProvider(AgentProvider):
         return AgentResponse(agent=agent.name, text=content.strip())
 
 
+class ClaudeProvider(AgentProvider):
+    def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
+        if not token:
+            raise RuntimeError(
+                f"Missing auth token for {agent.name}. Provide --keys or set ${agent.auth_env}."
+            )
+
+        try:
+            import anthropic
+        except ImportError as exc:
+            raise RuntimeError(
+                "anthropic is required for the Claude provider. Install in the venv with: "
+                "/home/zos/meetup/.venv/bin/python -m pip install anthropic"
+            ) from exc
+
+        model = agent.model or "claude-3-5-sonnet-latest"
+        client = anthropic.Anthropic(api_key=token)
+        response = client.messages.create(
+            model=model,
+            max_tokens=500,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = ""
+        for block in getattr(response, "content", []):
+            if getattr(block, "type", None) == "text":
+                text += getattr(block, "text", "")
+        return AgentResponse(agent=agent.name, text=text.strip())
+
+
 def extract_gemini_text(response: Any) -> str:
     text = getattr(response, "text", None)
     if isinstance(text, str):
@@ -229,6 +258,7 @@ PROVIDERS: Dict[str, AgentProvider] = {
     "openai": OpenAIProvider(),
     "gemini": GeminiProvider(),
     "grok": GrokProvider(),
+    "claude": ClaudeProvider(),
     "mock": MockProvider(),
 }
 
@@ -380,6 +410,8 @@ def resolve_token(agent: AgentConfig, tokens: Dict[str, str]) -> Optional[str]:
         return tokens["Gemini"]
     if agent.provider == "grok" and "Grok" in tokens:
         return tokens["Grok"]
+    if agent.provider == "claude" and "Claude" in tokens:
+        return tokens["Claude"]
     if agent.auth_env:
         return os.environ.get(agent.auth_env)
     return None
