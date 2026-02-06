@@ -37,6 +37,20 @@
       "model": "claude-opus-4-6"
     },
     {
+      "name": "DeepSeek",
+      "role": "participant",
+      "provider": "deepseek",
+      "auth_env": "DEEPSEEK_API_KEY",
+      "model": "deepseek-chat"
+    },
+    {
+      "name": "Mistral",
+      "role": "participant",
+      "provider": "mistral",
+      "auth_env": "MISTRAL_API_KEY",
+      "model": "mistral-medium-2505"
+    },
+    {
       "name": "Mock Agent",
       "role": "participant",
       "provider": "mock"

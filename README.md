@@ -54,6 +54,16 @@ Web search and URL fetch are enabled by default via the Claude `web_search` and 
 supported models and require org-level enablement in Anthropic Console. The web fetch tool requires the
 `anthropic-beta: web-fetch-2025-09-10` header.
 
+## DeepSeek provider
+Use `"provider": "deepseek"` with `"model": "deepseek-chat"` (or another DeepSeek model). The token can come from
+`--keys` using the agent name (e.g., `"DeepSeek"`) or from `DEEPSEEK_API_KEY`. Uses the OpenAI-compatible API and keeps
+local conversation history to provide session-like behavior.
+
+## Mistral provider
+Use `"provider": "mistral"` with `"model": "mistral-medium-2505"` (or another Mistral model). The token can come from
+`--keys` using the agent name (e.g., `"Mistral"`) or from `MISTRAL_API_KEY`. Uses the Conversations API to maintain a
+conversation ID, and enables the `web_search` tool by default.
+
 ## Notes
 - No API keys are stored in the repo. Use environment variables or a keys JSON file referenced by `--keys`.
 - `mock` provider is included for dry runs.

@@ -216,6 +216,9 @@ class GrokProvider(AgentProvider):
 
 
 class ClaudeProvider(AgentProvider):
+    def __init__(self) -> None:
+        self._history: Dict[str, List[Dict[str, str]]] = {}
+
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not token:
             raise RuntimeError(
@@ -250,6 +253,8 @@ class ClaudeProvider(AgentProvider):
             api_key=token,
             default_headers={"anthropic-beta": "web-fetch-2025-09-10"},
         )
+        history = self._history.setdefault(agent.name, [])
+        history.append({"role": "user", "content": prompt})
         response = client.messages.create(
             model=model,
             max_tokens=500,
@@ -265,12 +270,14 @@ class ClaudeProvider(AgentProvider):
                     "max_uses": 5,
                 },
             ],
-            messages=[{"role": "user", "content": prompt}],
+            messages=history,
         )
         text = ""
         for block in getattr(response, "content", []):
             if getattr(block, "type", None) == "text":
                 text += getattr(block, "text", "")
+        if text:
+            history.append({"role": "assistant", "content": text})
         return AgentResponse(agent=agent.name, text=text.strip())
 
 
@@ -288,12 +295,97 @@ def extract_openai_text(response: Any) -> str:
     return ""
 
 
+class DeepSeekProvider(AgentProvider):
+    def __init__(self) -> None:
+        self._history: Dict[str, List[Dict[str, str]]] = {}
+
+    def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
+        if not token:
+            raise RuntimeError(
+                f"Missing auth token for {agent.name}. Provide --keys or set ${agent.auth_env}."
+            )
+
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            raise RuntimeError(
+                "openai is required for the DeepSeek provider. Install in the venv with: "
+                "/home/zos/meetup/.venv/bin/python -m pip install openai"
+            ) from exc
+
+        model = agent.model or "deepseek-chat"
+        history = self._history.setdefault(agent.name, [])
+        history.append({"role": "user", "content": prompt})
+
+        client = OpenAI(api_key=token, base_url="https://api.deepseek.com")
+        response = client.chat.completions.create(
+            model=model,
+            messages=history,
+            stream=False,
+        )
+        content = response.choices[0].message.content if response.choices else ""
+        if content:
+            history.append({"role": "assistant", "content": content})
+        return AgentResponse(agent=agent.name, text=content.strip())
+
+
+class MistralProvider(AgentProvider):
+    def __init__(self) -> None:
+        self._conversation_ids: Dict[str, str] = {}
+
+    def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
+        if not token:
+            raise RuntimeError(
+                f"Missing auth token for {agent.name}. Provide --keys or set ${agent.auth_env}."
+            )
+
+        try:
+            from mistralai import Mistral
+        except ImportError as exc:
+            raise RuntimeError(
+                "mistralai is required for the Mistral provider. Install in the venv with: "
+                "/home/zos/meetup/.venv/bin/python -m pip install mistralai"
+            ) from exc
+
+        model = agent.model or "mistral-medium-2505"
+        client = Mistral(api_key=token)
+
+        conv_id = self._conversation_ids.get(agent.name)
+        if conv_id:
+            response = client.beta.conversations.append(
+                conversation_id=conv_id,
+                inputs=prompt,
+            )
+        else:
+            response = client.beta.conversations.start(
+                model=model,
+                inputs=prompt,
+                tools=[{"type": "web_search"}],
+            )
+            conv_id = getattr(response, "conversation_id", None)
+            if conv_id:
+                self._conversation_ids[agent.name] = conv_id
+
+        text = ""
+        outputs = getattr(response, "outputs", None)
+        if outputs is None and hasattr(response, "model_dump"):
+            outputs = response.model_dump().get("outputs", [])
+        for entry in outputs or []:
+            if isinstance(entry, dict) and entry.get("type") == "message.output":
+                for chunk in entry.get("content", []) or []:
+                    if isinstance(chunk, dict) and chunk.get("type") == "text":
+                        text += chunk.get("text", "")
+        return AgentResponse(agent=agent.name, text=text.strip())
+
+
 PROVIDERS: Dict[str, AgentProvider] = {
     "simple_http": SimpleHttpProvider(),
     "openai": OpenAIProvider(),
     "gemini": GeminiProvider(),
     "grok": GrokProvider(),
     "claude": ClaudeProvider(),
+    "deepseek": DeepSeekProvider(),
+    "mistral": MistralProvider(),
     "mock": MockProvider(),
 }
 
@@ -487,6 +579,10 @@ def resolve_token(agent: AgentConfig, tokens: Dict[str, str]) -> Optional[str]:
         return tokens["Grok"]
     if agent.provider == "claude" and "Claude" in tokens:
         return tokens["Claude"]
+    if agent.provider == "deepseek" and "DeepSeek" in tokens:
+        return tokens["DeepSeek"]
+    if agent.provider == "mistral" and "Mistral" in tokens:
+        return tokens["Mistral"]
     if agent.auth_env:
         return os.environ.get(agent.auth_env)
     return None
