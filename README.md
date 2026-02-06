@@ -36,6 +36,11 @@ using the agent name (e.g., `"ChatGPT 5.2"`) or from `OPENAI_API_KEY`.
 Use `"provider": "gemini"` with `"model": "gemini-3-pro-preview"` (or another Gemini model). The token can come from
 `--keys` using the agent name (e.g., `"Gemini 3 Pro"`) or from `GEMINI_API_KEY`.
 
+## Grok provider
+Use `"provider": "grok"` with `"model": "grok-4-latest"` (or another Grok model). The token can come from `--keys`
+using the agent name (e.g., `"Grok 4"`) or from `XAI_API_KEY`. Requires `xai-sdk` installed in the venv:
+`/home/zos/meetup/.venv/bin/python -m pip install xai-sdk`.
+
 ## Notes
 - No API keys are stored in the repo. Use environment variables or a keys JSON file referenced by `--keys`.
 - `mock` provider is included for dry runs.

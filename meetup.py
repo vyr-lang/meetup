@@ -197,6 +197,32 @@ class GeminiProvider(AgentProvider):
         return AgentResponse(agent=agent.name, text=text)
 
 
+class GrokProvider(AgentProvider):
+    def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
+        if not token:
+            raise RuntimeError(
+                f"Missing auth token for {agent.name}. Provide --keys or set ${agent.auth_env}."
+            )
+
+        try:
+            from xai_sdk import Client
+            from xai_sdk.chat import user
+        except ImportError as exc:
+            raise RuntimeError(
+                "xai-sdk is required for Grok. Install it in the venv with: "
+                "/home/zos/meetup/.venv/bin/python -m pip install xai-sdk"
+            ) from exc
+
+        model = agent.model or "grok-4-latest"
+        client = Client(api_key=token, timeout=60)
+        chat = client.chat.create(model=model)
+        chat.append(user(prompt))
+        response = chat.sample()
+
+        content = getattr(response, "content", "") or ""
+        return AgentResponse(agent=agent.name, text=content.strip())
+
+
 def extract_gemini_text(payload: Dict[str, Any]) -> str:
     candidates = payload.get("candidates", [])
     if not candidates:
@@ -225,6 +251,7 @@ PROVIDERS: Dict[str, AgentProvider] = {
     "simple_http": SimpleHttpProvider(),
     "openai": OpenAIProvider(),
     "gemini": GeminiProvider(),
+    "grok": GrokProvider(),
     "mock": MockProvider(),
 }
 

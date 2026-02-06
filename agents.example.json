@@ -23,6 +23,13 @@
       "model": "gemini-3-pro-preview"
     },
     {
+      "name": "Grok 4",
+      "role": "participant",
+      "provider": "grok",
+      "auth_env": "XAI_API_KEY",
+      "model": "grok-4-latest"
+    },
+    {
       "name": "Mock Agent",
       "role": "participant",
       "provider": "mock"
