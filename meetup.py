@@ -389,6 +389,12 @@ def load_tokens(path: Optional[str]) -> Dict[str, str]:
 def resolve_token(agent: AgentConfig, tokens: Dict[str, str]) -> Optional[str]:
     if agent.name in tokens:
         return tokens[agent.name]
+    if agent.provider == "openai" and "ChatGPT" in tokens:
+        return tokens["ChatGPT"]
+    if agent.provider == "gemini" and "Gemini" in tokens:
+        return tokens["Gemini"]
+    if agent.provider == "grok" and "Grok" in tokens:
+        return tokens["Grok"]
     if agent.auth_env:
         return os.environ.get(agent.auth_env)
     return None
