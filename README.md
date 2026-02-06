@@ -28,6 +28,10 @@ The default `simple_http` provider sends a POST request to each agent's endpoint
 ```
 It expects a JSON response with a `text` or `response` field. If a response is not JSON, the raw body is used as text.
 
+## OpenAI provider
+Use `"provider": "openai"` with `"model": "gpt-5.2"` (or another OpenAI model). The token can come from `--keys`
+using the agent name (e.g., `"ChatGPT 5.2"`) or from `OPENAI_API_KEY`.
+
 ## Notes
 - No API keys are stored in the repo. Use environment variables or a keys JSON file referenced by `--keys`.
 - `mock` provider is included for dry runs.

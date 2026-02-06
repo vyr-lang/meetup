@@ -3,10 +3,9 @@
     {
       "name": "ChatGPT 5.2",
       "role": "chair",
-      "provider": "simple_http",
-      "endpoint": "https://api.example.com/agent/chatgpt52",
-      "auth_env": "VYR_CHATGPT52_TOKEN",
-      "model": "chatgpt-5.2"
+      "provider": "openai",
+      "auth_env": "OPENAI_API_KEY",
+      "model": "gpt-5.2"
     },
     {
       "name": "Codex 5.2",

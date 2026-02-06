@@ -48,7 +48,7 @@ class MeetingContext:
 
 
 class AgentProvider:
-    def request(self, agent: AgentConfig, prompt: str) -> AgentResponse:
+    def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         raise NotImplementedError
 
 
@@ -106,8 +106,67 @@ class MockProvider(AgentProvider):
         return AgentResponse(agent=agent.name, text=text)
 
 
+class OpenAIProvider(AgentProvider):
+    def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
+        if not token:
+            raise RuntimeError(
+                f"Missing auth token for {agent.name}. Provide --keys or set ${agent.auth_env}."
+            )
+
+        model = agent.model or "gpt-5.2"
+        payload = {
+            "model": model,
+            "input": prompt,
+        }
+        data = json.dumps(payload).encode("utf-8")
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
+        request = urllib.request.Request(
+            "https://api.openai.com/v1/responses",
+            data=data,
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                body = response.read().decode("utf-8")
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(
+                f"OpenAI API error: {exc.code} {exc.reason}. {detail}"
+            ) from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"Failed to reach OpenAI API: {exc.reason}") from exc
+
+        try:
+            parsed = json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Unexpected OpenAI response: {body}") from exc
+
+        text = extract_openai_text(parsed)
+        return AgentResponse(agent=agent.name, text=text)
+
+
+def extract_openai_text(payload: Dict[str, Any]) -> str:
+    if isinstance(payload.get("output_text"), str):
+        return payload["output_text"].strip()
+
+    chunks: List[str] = []
+    for item in payload.get("output", []):
+        if item.get("type") != "message":
+            continue
+        for content in item.get("content", []):
+            if content.get("type") == "output_text" and isinstance(content.get("text"), str):
+                chunks.append(content["text"])
+    return "\n".join(chunks).strip()
+
+
 PROVIDERS: Dict[str, AgentProvider] = {
     "simple_http": SimpleHttpProvider(),
+    "openai": OpenAIProvider(),
     "mock": MockProvider(),
 }
 
