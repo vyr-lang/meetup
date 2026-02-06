@@ -200,7 +200,7 @@ class GrokProvider(AgentProvider):
         model = agent.model or "grok-4-latest"
         chat = self._chats.get(agent.name)
         if chat is None:
-            client = Client(api_key=token, timeout=60)
+            client = Client(api_key=token, timeout=300)
             chat = client.chat.create(model=model, tools=[web_search()])
             self._chats[agent.name] = chat
         chat.append(user(prompt))
