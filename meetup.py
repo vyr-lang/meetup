@@ -107,6 +107,9 @@ class MockProvider(AgentProvider):
 
 
 class OpenAIProvider(AgentProvider):
+    def __init__(self) -> None:
+        self._previous_response_ids: Dict[str, str] = {}
+
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not token:
             raise RuntimeError(
@@ -123,12 +126,22 @@ class OpenAIProvider(AgentProvider):
 
         model = agent.model or "gpt-5.2"
         client = OpenAI(api_key=token)
-        response = client.responses.create(model=model, input=prompt)
+        previous_response_id = self._previous_response_ids.get(agent.name)
+        response = client.responses.create(
+            model=model,
+            input=prompt,
+            previous_response_id=previous_response_id,
+        )
+        if getattr(response, "id", None):
+            self._previous_response_ids[agent.name] = response.id
         text = extract_openai_text(response)
         return AgentResponse(agent=agent.name, text=text)
 
 
 class GeminiProvider(AgentProvider):
+    def __init__(self) -> None:
+        self._chats: Dict[str, Any] = {}
+
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not token:
             raise RuntimeError(
@@ -145,12 +158,19 @@ class GeminiProvider(AgentProvider):
 
         model = agent.model or "gemini-3-pro-preview"
         client = genai.Client(api_key=token)
-        response = client.models.generate_content(model=model, contents=prompt)
+        chat = self._chats.get(agent.name)
+        if chat is None:
+            chat = client.chats.create(model=model)
+            self._chats[agent.name] = chat
+        response = chat.send_message(prompt)
         text = extract_gemini_text(response)
         return AgentResponse(agent=agent.name, text=text)
 
 
 class GrokProvider(AgentProvider):
+    def __init__(self) -> None:
+        self._chats: Dict[str, Any] = {}
+
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not token:
             raise RuntimeError(
@@ -167,8 +187,11 @@ class GrokProvider(AgentProvider):
             ) from exc
 
         model = agent.model or "grok-4-latest"
-        client = Client(api_key=token, timeout=60)
-        chat = client.chat.create(model=model)
+        chat = self._chats.get(agent.name)
+        if chat is None:
+            client = Client(api_key=token, timeout=60)
+            chat = client.chat.create(model=model)
+            self._chats[agent.name] = chat
         chat.append(user(prompt))
         response = chat.sample()
 

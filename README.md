@@ -31,10 +31,12 @@ It expects a JSON response with a `text` or `response` field. If a response is n
 ## OpenAI provider
 Use `"provider": "openai"` with `"model": "gpt-5.2"` (or another OpenAI model). The token can come from `--keys`
 using the agent name (e.g., `"ChatGPT 5.2"`) or from `OPENAI_API_KEY`. Uses the official OpenAI Python SDK.
+Conversation state is chained via `previous_response_id`.
 
 ## Gemini provider
 Use `"provider": "gemini"` with `"model": "gemini-3-pro-preview"` (or another Gemini model). The token can come from
 `--keys` using the agent name (e.g., `"Gemini 3 Pro"`) or from `GEMINI_API_KEY`. Uses the official Google Gen AI SDK.
+Gemini chat sessions retain history but still send full history each turn.
 
 ## Grok provider
 Use `"provider": "grok"` with `"model": "grok-4-latest"` (or another Grok model). The token can come from `--keys`
