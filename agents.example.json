@@ -16,6 +16,13 @@
       "model": "codex-5.2"
     },
     {
+      "name": "Gemini 3 Pro",
+      "role": "participant",
+      "provider": "gemini",
+      "auth_env": "GEMINI_API_KEY",
+      "model": "gemini-3-pro-preview"
+    },
+    {
       "name": "Mock Agent",
       "role": "participant",
       "provider": "mock"
