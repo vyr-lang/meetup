@@ -1,0 +1,5 @@
+<newmsg id="1">
+  <from>Administrator</from>
+  <subject>Butterfly Discussion</subject>
+  <p>Please discuss what the best butterfly is and why.</p>
+</newmsg>
