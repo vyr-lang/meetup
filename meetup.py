@@ -353,7 +353,9 @@ def run_meeting(
                 state.initialized = True
                 break
 
-        if not new_message_created and all(state.current_id > total_messages for state in states.values()):
+        if not new_message_created and all(
+            state.credits <= 0 or state.current_id > total_messages for state in states.values()
+        ):
             break
 
 
