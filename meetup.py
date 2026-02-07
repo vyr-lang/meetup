@@ -1,38 +1,30 @@
 #!/usr/bin/env python3
-"""Virtual meeting runner for Vyr mailings."""
+"""Virtual meeting runner (email-style) for Vyr mailings."""
 
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import json
 import os
-import random
 import re
 import sys
-import textwrap
-import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
-from provider_base import AgentConfig, AgentProvider, AgentResponse
+from provider_base import AgentConfig, AgentProvider
 from providers import PROVIDERS
 
 
-HAND_RAISE_PATTERN = re.compile(r"\braise\s*:\s*(yes|no)\b", re.IGNORECASE)
+REPLY_RE = re.compile(r"^\s*<reply>(?P<body>.*)</reply>\s*$", re.DOTALL | re.IGNORECASE)
+NEWMSG_RE = re.compile(r"^\s*<newmsg>(?P<body>.*)</newmsg>\s*$", re.DOTALL | re.IGNORECASE)
+NEXT_RE = re.compile(r"^\s*<next\s*/>\s*$", re.IGNORECASE)
 
 
 @dataclass
-class MeetingContext:
-    mailing_id: str
-    agenda: List[str]
-    chair: str
-    notes_path: str
-    context_limit: int
-    seed: Optional[int]
-    source_context: str
-
+class AgentState:
+    current_id: int
+    initialized: bool = False
 
 
 def load_agents(path: str) -> List[AgentConfig]:
@@ -55,51 +47,15 @@ def load_agents(path: str) -> List[AgentConfig]:
     return agents
 
 
-def resolve_chair(agents: List[AgentConfig], chair: Optional[str]) -> str:
-    if chair:
-        return chair
-    for agent in agents:
-        if agent.role.lower() == "chair":
-            return agent.name
-    return agents[0].name if agents else "chair"
-
-
-def build_context_log(messages: List[Dict[str, str]], limit: int) -> str:
-    if limit <= 0:
-        return ""
-    tail = messages[-limit:]
-    return "\n".join(f"{m['speaker']}: {m['text']}" for m in tail)
-
-
-def load_url_context(path: Optional[str]) -> str:
+def load_tokens(path: Optional[str]) -> Dict[str, str]:
     if not path:
-        return ""
-    url_file = Path(path)
-    if not url_file.exists():
-        raise FileNotFoundError(f"URL context file not found: {path}")
-    urls = [line.strip() for line in url_file.read_text(encoding="utf-8").splitlines() if line.strip()]
-    if not urls:
-        return ""
-
-    blocks = []
-    for url in urls:
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "meetup/1.0"})
-            with urllib.request.urlopen(req, timeout=30) as response:
-                body = response.read().decode("utf-8", errors="replace")
-        except Exception as exc:
-            body = f"[error] failed to fetch: {exc}"
-        blocks.append(
-            "\n".join(
-                [
-                    "----- BEGIN SOURCE -----",
-                    f"URL: {url}",
-                    body,
-                    "----- END SOURCE -----",
-                ]
-            )
-        )
-    return "\n\n".join(blocks)
+        return {}
+    with open(path, "r", encoding="utf-8") as handle:
+        raw = json.load(handle)
+    tokens = raw.get("tokens", {})
+    if not isinstance(tokens, dict):
+        raise ValueError("keys file must contain a 'tokens' object")
+    return {str(k): str(v) for k, v in tokens.items()}
 
 
 def resolve_token(agent: AgentConfig, tokens: Dict[str, str]) -> Optional[str]:
@@ -122,204 +78,217 @@ def resolve_token(agent: AgentConfig, tokens: Dict[str, str]) -> Optional[str]:
     return None
 
 
-def ask_hand_raise(
-    provider: AgentProvider,
+def list_message_ids(directory: Path) -> List[int]:
+    ids: List[int] = []
+    for path in directory.glob("msg*.txt"):
+        match = re.match(r"msg(\d+)\.txt$", path.name)
+        if match:
+            ids.append(int(match.group(1)))
+    return sorted(set(ids))
+
+
+def read_message(directory: Path, message_id: int) -> str:
+    path = directory / f"msg{message_id}.txt"
+    if not path.exists():
+        return "[missing message]"
+    return path.read_text(encoding="utf-8")
+
+
+def write_message(directory: Path, message_id: int, content: str) -> None:
+    path = directory / f"msg{message_id}.txt"
+    path.write_text(content, encoding="utf-8")
+
+
+def build_intro(agent: AgentConfig, others: List[AgentConfig]) -> str:
+    participants = "\n".join(f"    - {other.name}" for other in others)
+    return (
+        "START INTRO\n\n"
+        f"You are {agent.name}.  You are particpating in a virtual meeting with:\n\n"
+        f"{participants}\n\n"
+        "The meeting is arranged into a series of messages in an email-like discussion format.\n\n"
+        "You will interact with the meeting by responding with commands with a particular format.\n\n"
+        "You will be informed how many unread messages and new messages you have in your inbox.\n\n"
+        "The first message (message id #1) will then be displayed.\n\n"
+        "You will then be given three options:\n\n"
+        "1. Reply to the message\n"
+        "2. Write a new message\n"
+        "3. Mark this message as read and read the next message\n\n"
+        "To reply to the current message (1.) you will format your response in the following format:\n\n"
+        "<reply>\n"
+        "  <subject>The title of your reply</subject>\n"
+        "  <quote>Quote something from the message you are replying to if you like</quote>\n"
+        "  <p>Write what you want to say in your reply here</p>\n"
+        "  <quote>Quote some more stuff if you want</quote>\n"
+        "  <p>Write some more stuff</p>\n"
+        "  <p>And some more stuff</p>\n"
+        "</reply>\n\n"
+        "To write a new message format (2.) format it as follows:\n\n"
+        "<newmsg>\n"
+        "  <subject>Subject of your new message</subject>\n"
+        "  <p>First paragraph of your new message</p>\n"
+        "  <p>Second paragraph of your new message</p>\n"
+        "  <p>And so on</p>\n"
+        "</newmsg>\n\n"
+        "Both of these message formats may use basic HTML tags within paragraphs <p> such as bold, "
+        "italic, underordered/ordered lists, and so on.\n\n"
+        "To archive the current message and read the next one, provide the following response:\n\n"
+        "<next/>\n\n"
+        "The next message will then be displayed and you will be given the three options again.\n\n"
+        "If you provide a response other than of these three options you will receive an error message "
+        "that your response is ill-formed and you will be prompted again.\n\n"
+        "END INTRO\n"
+    )
+
+
+def build_prompt(
     agent: AgentConfig,
-    ctx: MeetingContext,
-    agenda_item: str,
-    log: str,
-    token: Optional[str],
-) -> bool:
-    print(f"[debug] calling {agent.name} for hand-raise", flush=True)
-    prompt = textwrap.dedent(
-        f"""
-        You are {agent.name}, a participant in the Vyr meeting for {ctx.mailing_id}.
-        Agenda item: {agenda_item}
-
-        Sources:
-        {ctx.source_context}
-
-        Respond with:
-        - A line 'RAISE: yes' or 'RAISE: no'
-        - One sentence why you should or should not speak.
-
-        Recent context:
-        {log}
-        """
-    ).strip()
-    response = provider.request(agent, prompt, token)
-    print(f"[debug] completed hand-raise for {agent.name}", flush=True)
-    match = HAND_RAISE_PATTERN.search(response.text)
-    return bool(match and match.group(1).lower() == "yes")
+    state: AgentState,
+    total_messages: int,
+    message_body: str,
+    include_intro: bool,
+    others: List[AgentConfig],
+) -> str:
+    unread = max(total_messages - state.current_id, 0)
+    prompt_parts = []
+    if include_intro:
+        prompt_parts.append(build_intro(agent, others))
+    prompt_parts.append(f"You have {unread} unread messages.")
+    if message_body:
+        prompt_parts.append(f"Message #{state.current_id}:\n{message_body}")
+    else:
+        prompt_parts.append("There are no more messages to display.")
+    prompt_parts.append(
+        "Options:\n"
+        "1. Reply to the message\n"
+        "2. Write a new message\n"
+        "3. Mark this message as read and read the next message"
+    )
+    return "\n\n".join(prompt_parts).strip()
 
 
-def ask_to_speak(
-    provider: AgentProvider,
-    agent: AgentConfig,
-    ctx: MeetingContext,
-    agenda_item: str,
-    log: str,
-    token: Optional[str],
-) -> AgentResponse:
-    print(f"[debug] calling {agent.name} to speak", flush=True)
-    prompt = textwrap.dedent(
-        f"""
-        You are {agent.name}, a participant in the Vyr meeting for {ctx.mailing_id}.
-        Agenda item: {agenda_item}
-
-        Speak concisely (max 180 words). Provide concrete points and, if applicable, cite paper numbers.
-
-        Sources:
-        {ctx.source_context}
-
-        Recent context:
-        {log}
-        """
-    ).strip()
-    response = provider.request(agent, prompt, token)
-    print(f"[debug] completed response from {agent.name}", flush=True)
-    return response
+def parse_response(text: str) -> Tuple[str, Optional[str]]:
+    if NEXT_RE.match(text):
+        return "next", None
+    reply_match = REPLY_RE.match(text)
+    if reply_match:
+        return "reply", reply_match.group("body").strip()
+    new_match = NEWMSG_RE.match(text)
+    if new_match:
+        return "newmsg", new_match.group("body").strip()
+    return "invalid", None
 
 
-def chair_summary(
-    provider: AgentProvider,
-    chair: AgentConfig,
-    ctx: MeetingContext,
-    agenda_item: str,
-    log: str,
-    token: Optional[str],
-) -> AgentResponse:
-    print(f"[debug] calling {chair.name} for chair summary", flush=True)
-    prompt = textwrap.dedent(
-        f"""
-        You are {chair.name}, chairing the Vyr meeting for {ctx.mailing_id}.
-        Agenda item: {agenda_item}
-
-        Summarize the discussion in 5-8 bullet points. Note decisions, open questions, and action items.
-
-        Sources:
-        {ctx.source_context}
-
-        Recent context:
-        {log}
-        """
-    ).strip()
-    response = provider.request(chair, prompt, token)
-    print(f"[debug] completed chair summary for {chair.name}", flush=True)
-    return response
+def apply_reply(
+    directory: Path,
+    agent_name: str,
+    current_id: int,
+    total_messages: int,
+    body: str,
+) -> int:
+    new_id = total_messages + 1
+    content = (
+        f"<reply id=\"{new_id}\" reply_to=\"{current_id}\">\n"
+        f"  <from>{agent_name}</from>\n"
+        f"{body}\n"
+        f"</reply>\n"
+    )
+    write_message(directory, new_id, content)
+    return new_id
 
 
-def write_notes(path: str, ctx: MeetingContext, messages: List[Dict[str, str]]) -> None:
-    with open(path, "w", encoding="utf-8") as handle:
-        handle.write(f"# Meeting Notes — {ctx.mailing_id}\n\n")
-        handle.write(f"Date: {dt.datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n")
-        handle.write("## Agenda\n")
-        for item in ctx.agenda:
-            handle.write(f"- {item}\n")
-        handle.write("\n## Transcript\n")
-        for msg in messages:
-            handle.write(f"\n### {msg['speaker']}\n")
-            handle.write(f"{msg['text']}\n")
+def apply_newmsg(directory: Path, agent_name: str, total_messages: int, body: str) -> int:
+    new_id = total_messages + 1
+    content = (
+        f"<newmsg id=\"{new_id}\">\n"
+        f"  <from>{agent_name}</from>\n"
+        f"{body}\n"
+        f"</newmsg>\n"
+    )
+    write_message(directory, new_id, content)
+    return new_id
 
 
-def load_tokens(path: Optional[str]) -> Dict[str, str]:
-    if not path:
-        return {}
-    with open(path, "r", encoding="utf-8") as handle:
-        raw = json.load(handle)
-    tokens = raw.get("tokens", {})
-    if not isinstance(tokens, dict):
-        raise ValueError("keys file must contain a 'tokens' object")
-    return {str(k): str(v) for k, v in tokens.items()}
-
-
-def run_meeting(ctx: MeetingContext, agents: List[AgentConfig], tokens: Dict[str, str]) -> None:
+def run_meeting(directory: Path, agents: List[AgentConfig], tokens: Dict[str, str]) -> None:
     if not agents:
         raise RuntimeError("No agents configured.")
 
     provider_map = {name: PROVIDERS[name] for name in PROVIDERS}
-    messages: List[Dict[str, str]] = []
+    ids = list_message_ids(directory)
+    if not ids:
+        raise RuntimeError("No msgN.txt files found in the directory.")
 
-    chair_name = ctx.chair
-    chair_agent = next((a for a in agents if a.name == chair_name), agents[0])
+    total_messages = max(ids)
+    states = {agent.name: AgentState(current_id=1) for agent in agents}
 
-    if ctx.seed is not None:
-        random.seed(ctx.seed)
-
-    for agenda_item in ctx.agenda:
-        print(f"\n=== Agenda Item ===\n{agenda_item}\n", flush=True)
-        log = build_context_log(messages, ctx.context_limit)
-        raised: List[AgentConfig] = []
+    while True:
+        new_message_created = False
         for agent in agents:
+            state = states[agent.name]
             provider = provider_map.get(agent.provider)
             if not provider:
                 raise RuntimeError(f"Unknown provider: {agent.provider}")
-            if agent.name == chair_name:
-                continue
             token = resolve_token(agent, tokens)
-            if ask_hand_raise(provider, agent, ctx, agenda_item, log, token):
-                raised.append(agent)
 
-        if not raised:
-            raised = [agent for agent in agents if agent.name != chair_name]
+            if state.current_id <= total_messages:
+                message_body = read_message(directory, state.current_id)
+            else:
+                message_body = ""
 
-        for agent in raised:
-            provider = provider_map[agent.provider]
-            token = resolve_token(agent, tokens)
-            response = ask_to_speak(provider, agent, ctx, agenda_item, log, token)
-            messages.append({"speaker": agent.name, "text": response.text})
-            print(f"\n[{agent.name}]\n{response.text}\n", flush=True)
-            log = build_context_log(messages, ctx.context_limit)
+            include_intro = not state.initialized
+            others = [other for other in agents if other.name != agent.name]
+            prompt = build_prompt(agent, state, total_messages, message_body, include_intro, others)
 
-        chair_provider = provider_map[chair_agent.provider]
-        chair_token = resolve_token(chair_agent, tokens)
-        summary = chair_summary(chair_provider, chair_agent, ctx, agenda_item, log, chair_token)
-        messages.append({"speaker": f"{chair_name} (Chair Summary)", "text": summary.text})
-        print(f"\n[{chair_name} (Chair Summary)]\n{summary.text}\n", flush=True)
+            while True:
+                print(f"[debug] calling {agent.name}", flush=True)
+                response = provider.request(agent, prompt, token)
+                print(f"[debug] completed response from {agent.name}", flush=True)
+                action, body = parse_response(response.text)
 
-    write_notes(ctx.notes_path, ctx, messages)
+                if action == "invalid":
+                    prompt = (
+                        "ERROR: Response ill-formed. Please respond with <reply>...</reply>, "
+                        "<newmsg>...</newmsg>, or <next/>.\n\n"
+                        + build_prompt(agent, state, total_messages, message_body, False, others)
+                    )
+                    continue
+
+                if action == "next":
+                    if state.current_id <= total_messages:
+                        state.current_id += 1
+                elif action == "reply":
+                    apply_reply(directory, agent.name, state.current_id, total_messages, body or "")
+                    total_messages += 1
+                    new_message_created = True
+                elif action == "newmsg":
+                    apply_newmsg(directory, agent.name, total_messages, body or "")
+                    total_messages += 1
+                    new_message_created = True
+
+                state.initialized = True
+                break
+
+        if not new_message_created and all(state.current_id > total_messages for state in states.values()):
+            break
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run a Vyr mailing meeting.")
-    parser.add_argument("--mailing", required=True, help="Mailing identifier (e.g., M0001)")
+    parser = argparse.ArgumentParser(description="Run an email-style Vyr meeting.")
+    parser.add_argument("--dir", required=True, help="Directory containing msgN.txt files")
     parser.add_argument("--agents", required=True, help="Path to agents JSON config")
-    parser.add_argument("--agenda", required=True, help="Path to agenda text file (one item per line)")
-    parser.add_argument("--notes", default="meeting-notes.md", help="Output file for meeting notes")
-    parser.add_argument("--chair", default=None, help="Name of chair agent")
-    parser.add_argument("--context-limit", type=int, default=10, help="Number of prior messages to include")
-    parser.add_argument("--seed", type=int, default=None, help="Random seed for deterministic ordering")
     parser.add_argument("--keys", default=None, help="Path to JSON file containing per-agent tokens")
-    parser.add_argument(
-        "--context-urls",
-        default=None,
-        help="Path to a file containing URLs to fetch and inject into prompts",
-    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    with open(args.agenda, "r", encoding="utf-8") as handle:
-        agenda = [line.strip() for line in handle if line.strip()]
+    directory = Path(args.dir)
+    if not directory.exists():
+        raise RuntimeError(f"Directory not found: {directory}")
 
     agents = load_agents(args.agents)
-    chair = resolve_chair(agents, args.chair)
     tokens = load_tokens(args.keys)
-    source_context = load_url_context(args.context_urls)
-
-    ctx = MeetingContext(
-        mailing_id=args.mailing,
-        agenda=agenda,
-        chair=chair,
-        notes_path=args.notes,
-        context_limit=args.context_limit,
-        seed=args.seed,
-        source_context=source_context,
-    )
-
-    run_meeting(ctx, agents, tokens)
-    print(f"Meeting complete. Notes written to {args.notes}")
+    run_meeting(directory, agents, tokens)
+    print("Meeting complete.")
     return 0
 
 
