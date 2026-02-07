@@ -1,13 +1,43 @@
 """Mistral provider implementation."""
 
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from provider_base import AgentConfig, AgentProvider, AgentResponse
 
 
 class MistralProvider(AgentProvider):
     def __init__(self) -> None:
-        self._conversation_ids: Dict[str, str] = {}
+        self._histories: Dict[str, List[Dict[str, str]]] = {}
+
+    @staticmethod
+    def _extract_text(response) -> str:
+        if hasattr(response, "model_dump"):
+            data = response.model_dump()
+        else:
+            data = getattr(response, "__dict__", {}) or {}
+
+        choices = data.get("choices") or []
+        if choices:
+            choice0 = choices[0] or {}
+            message = choice0.get("message") or {}
+            content = message.get("content")
+            if isinstance(content, str):
+                return content.strip()
+            if isinstance(content, list):
+                parts: List[str] = []
+                for chunk in content:
+                    if isinstance(chunk, dict):
+                        if "text" in chunk and isinstance(chunk["text"], str):
+                            parts.append(chunk["text"])
+                        elif chunk.get("type") == "text" and isinstance(chunk.get("text"), str):
+                            parts.append(chunk["text"])
+                return "".join(parts).strip()
+
+        output_text = data.get("output_text")
+        if isinstance(output_text, str):
+            return output_text.strip()
+
+        return ""
 
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not token:
@@ -26,29 +56,17 @@ class MistralProvider(AgentProvider):
         model = agent.model or "mistral-medium-2505"
         client = Mistral(api_key=token)
 
-        conv_id = self._conversation_ids.get(agent.name)
-        if conv_id:
-            response = client.beta.conversations.append(
-                conversation_id=conv_id,
-                inputs=prompt,
-            )
-        else:
-            response = client.beta.conversations.start(
-                model=model,
-                inputs=prompt,
-                tools=[{"type": "web_search"}],
-            )
-            conv_id = getattr(response, "conversation_id", None)
-            if conv_id:
-                self._conversation_ids[agent.name] = conv_id
+        history = self._histories.setdefault(agent.name, [])
+        history.append({"role": "user", "content": prompt})
 
-        text = ""
-        outputs = getattr(response, "outputs", None)
-        if outputs is None and hasattr(response, "model_dump"):
-            outputs = response.model_dump().get("outputs", [])
-        for entry in outputs or []:
-            if isinstance(entry, dict) and entry.get("type") == "message.output":
-                for chunk in entry.get("content", []) or []:
-                    if isinstance(chunk, dict) and chunk.get("type") == "text":
-                        text += chunk.get("text", "")
+        response = client.chat.complete(
+            model=model,
+            messages=history,
+            tools=[{"type": "web_search"}],
+        )
+
+        text = self._extract_text(response)
+        if text:
+            history.append({"role": "assistant", "content": text})
+
         return AgentResponse(agent=agent.name, text=text.strip())
