@@ -11,6 +11,17 @@ from typing import Dict, List, Optional
 import xml.etree.ElementTree as ET
 
 
+_ENTITY_RE = re.compile(r"&(#\d+|#x[0-9a-fA-F]+|[A-Za-z]+);")
+
+
+def sanitize_xml(text: str) -> str:
+    cleaned = text.replace("\r\n", "\n").replace("\r", "\n")
+    cleaned = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F]", "", cleaned)
+    cleaned = _ENTITY_RE.sub(lambda m: m.group(0), cleaned)
+    cleaned = re.sub(r"&(?!#\d+;|#x[0-9a-fA-F]+;|[A-Za-z]+;)", "&amp;", cleaned)
+    return cleaned
+
+
 class Message:
     def __init__(self, msg_id: int, reply_to: Optional[int], tag: str, raw_inner: str) -> None:
         self.msg_id = msg_id
@@ -56,8 +67,27 @@ def parse_message(path: Path) -> Message:
     text = path.read_text(encoding="utf-8")
     try:
         root = ET.fromstring(text)
-    except ET.ParseError as exc:
-        raise ValueError(f"Failed to parse {path.name}: {exc}") from exc
+    except ET.ParseError:
+        root = None
+
+    if root is None:
+        try:
+            import lxml.etree as LET
+        except Exception:
+            LET = None
+        if LET is not None:
+            parser = LET.XMLParser(recover=True)
+            try:
+                root = LET.fromstring(text.encode("utf-8"), parser=parser)
+            except Exception:
+                root = None
+
+    if root is None:
+        sanitized = sanitize_xml(text)
+        try:
+            root = ET.fromstring(sanitized)
+        except ET.ParseError as exc:
+            raise ValueError(f"Failed to parse {path.name}: {exc}") from exc
 
     msg_id_attr = root.attrib.get("id")
     if not msg_id_attr:
