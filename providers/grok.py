@@ -43,7 +43,7 @@ class GrokProvider(AgentProvider):
 
         try:
             from xai_sdk import Client
-            from xai_sdk.chat import user
+            from xai_sdk.chat import assistant, user
             from xai_sdk.tools import web_search
         except ImportError as exc:
             raise RuntimeError(
@@ -61,4 +61,6 @@ class GrokProvider(AgentProvider):
         response = chat.sample()
 
         content = getattr(response, "content", "") or ""
+        if content:
+            chat.append(assistant(content))
         return AgentResponse(agent=agent.name, text=content.strip())
