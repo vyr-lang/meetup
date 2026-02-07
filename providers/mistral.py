@@ -80,7 +80,7 @@ class MistralProvider(AgentProvider):
                 "/home/zos/meetup/.venv/bin/python -m pip install mistralai"
             ) from exc
 
-        model = agent.model or "mistral-medium-2505"
+        model = agent.model or "mistral-large-latest"
         client = Mistral(api_key=token)
 
         history = self._histories.setdefault(agent.name, [])

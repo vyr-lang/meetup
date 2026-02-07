@@ -44,7 +44,7 @@ class DeepSeekProvider(AgentProvider):
                 "/home/zos/meetup/.venv/bin/python -m pip install openai"
             ) from exc
 
-        model = agent.model or "deepseek-chat"
+        model = agent.model or "deepseek-reasoner"
         history = self._history.setdefault(agent.name, [])
         history.append({"role": "user", "content": prompt})
 
