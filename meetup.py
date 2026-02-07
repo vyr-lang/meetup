@@ -288,7 +288,7 @@ def run_meeting(directory: Path, agents: List[AgentConfig], tokens: Dict[str, st
                     total_messages += 1
                     new_message_created = True
                     print(
-                        f\"[newmsg] type=reply id={new_id} reply_to={state.current_id} from={agent.name}\",
+                        f"[newmsg] type=reply id={new_id} reply_to={state.current_id} from={agent.name}",
                         flush=True,
                     )
                 elif action == "newmsg":
@@ -296,7 +296,7 @@ def run_meeting(directory: Path, agents: List[AgentConfig], tokens: Dict[str, st
                     total_messages += 1
                     new_message_created = True
                     print(
-                        f\"[newmsg] type=newmsg id={new_id} from={agent.name}\",
+                        f"[newmsg] type=newmsg id={new_id} from={agent.name}",
                         flush=True,
                     )
 
