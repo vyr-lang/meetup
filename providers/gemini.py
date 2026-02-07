@@ -17,6 +17,38 @@ class GeminiProvider(AgentProvider):
         self._chats: Dict[str, Any] = {}
         self._client: Optional[Any] = None
 
+    def list_models(self, token: Optional[str]) -> list[str]:
+        if not token:
+            raise RuntimeError("Missing auth token for Gemini model listing.")
+        try:
+            from google import genai
+        except ImportError as exc:
+            raise RuntimeError(
+                "google-genai is required for the Gemini provider. Install in the venv with: "
+                "/home/zos/meetup/.venv/bin/python -m pip install google-genai"
+            ) from exc
+        client = genai.Client(api_key=token)
+        models_iter = None
+        if hasattr(client, "models") and hasattr(client.models, "list"):
+            try:
+                models_iter = client.models.list()
+            except Exception:
+                models_iter = None
+        if models_iter is None and hasattr(genai, "list_models"):
+            try:
+                models_iter = genai.list_models()
+            except Exception:
+                models_iter = None
+
+        models = []
+        for item in models_iter or []:
+            name = getattr(item, "name", None)
+            if isinstance(name, str):
+                models.append(name)
+            elif isinstance(item, dict) and isinstance(item.get("name"), str):
+                models.append(item["name"])
+        return sorted(set(models))
+
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not token:
             raise RuntimeError(

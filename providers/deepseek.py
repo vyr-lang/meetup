@@ -9,6 +9,27 @@ class DeepSeekProvider(AgentProvider):
     def __init__(self) -> None:
         self._history: Dict[str, List[Dict[str, str]]] = {}
 
+    def list_models(self, token: Optional[str]) -> list[str]:
+        if not token:
+            raise RuntimeError("Missing auth token for DeepSeek model listing.")
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            raise RuntimeError(
+                "openai is required for the DeepSeek provider. Install in the venv with: "
+                "/home/zos/meetup/.venv/bin/python -m pip install openai"
+            ) from exc
+        client = OpenAI(api_key=token, base_url="https://api.deepseek.com")
+        response = client.models.list()
+        models = []
+        for item in getattr(response, "data", []) or []:
+            model_id = getattr(item, "id", None)
+            if isinstance(model_id, str):
+                models.append(model_id)
+            elif isinstance(item, dict) and isinstance(item.get("id"), str):
+                models.append(item["id"])
+        return sorted(set(models))
+
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not token:
             raise RuntimeError(

@@ -80,6 +80,20 @@ def main() -> int:
     tokens = load_tokens(args.keys)
     token = resolve_token(agent, tokens)
 
+    if not args.model:
+        try:
+            models = provider.list_models(token)
+        except Exception as exc:
+            print(f"Failed to list models: {exc}", file=sys.stderr)
+            return 1
+        if models:
+            print("Available models:")
+            for name in models:
+                print(f"- {name}")
+        else:
+            print("No models available or model listing unsupported.")
+        return 0
+
     print(f"Chatting with provider '{provider_name}'. Press Ctrl-D to exit.")
     try:
         for line in sys.stdin:

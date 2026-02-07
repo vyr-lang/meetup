@@ -26,3 +26,6 @@ class AgentResponse:
 class AgentProvider:
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         raise NotImplementedError
+
+    def list_models(self, token: Optional[str]) -> list[str]:
+        return []

@@ -9,6 +9,32 @@ class GrokProvider(AgentProvider):
     def __init__(self) -> None:
         self._chats: Dict[str, Any] = {}
 
+    def list_models(self, token: Optional[str]) -> list[str]:
+        if not token:
+            raise RuntimeError("Missing auth token for Grok model listing.")
+        try:
+            from xai_sdk import Client
+        except ImportError as exc:
+            raise RuntimeError(
+                "xai-sdk is required for Grok. Install it in the venv with: "
+                "/home/zos/meetup/.venv/bin/python -m pip install xai-sdk"
+            ) from exc
+        client = Client(api_key=token, timeout=30)
+        models = []
+        try:
+            models_api = getattr(client, "models", None)
+            if models_api and hasattr(models_api, "list"):
+                response = models_api.list()
+                for item in getattr(response, "data", []) or []:
+                    model_id = getattr(item, "id", None)
+                    if isinstance(model_id, str):
+                        models.append(model_id)
+                    elif isinstance(item, dict) and isinstance(item.get("id"), str):
+                        models.append(item["id"])
+        except Exception:
+            return []
+        return sorted(set(models))
+
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not token:
             raise RuntimeError(

@@ -9,6 +9,9 @@ from provider_base import AgentConfig, AgentProvider, AgentResponse
 
 
 class SimpleHttpProvider(AgentProvider):
+    def list_models(self, token: Optional[str]) -> list[str]:
+        return []
+
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not agent.endpoint:
             raise ValueError(f"Agent {agent.name} is missing endpoint")

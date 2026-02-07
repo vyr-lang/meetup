@@ -9,6 +9,33 @@ class ClaudeProvider(AgentProvider):
     def __init__(self) -> None:
         self._history: Dict[str, List[Dict[str, str]]] = {}
 
+    def list_models(self, token: Optional[str]) -> list[str]:
+        if not token:
+            raise RuntimeError("Missing auth token for Claude model listing.")
+        try:
+            import anthropic
+        except ImportError as exc:
+            raise RuntimeError(
+                "anthropic is required for the Claude provider. Install in the venv with: "
+                "/home/zos/meetup/.venv/bin/python -m pip install anthropic"
+            ) from exc
+        client = anthropic.Anthropic(api_key=token)
+        try:
+            models_api = getattr(client, "models", None)
+            if models_api and hasattr(models_api, "list"):
+                response = models_api.list()
+                models = []
+                for item in getattr(response, "data", []) or []:
+                    model_id = getattr(item, "id", None)
+                    if isinstance(model_id, str):
+                        models.append(model_id)
+                    elif isinstance(item, dict) and isinstance(item.get("id"), str):
+                        models.append(item["id"])
+                return sorted(set(models))
+        except Exception:
+            return []
+        return []
+
     def request(self, agent: AgentConfig, prompt: str, token: Optional[str]) -> AgentResponse:
         if not token:
             raise RuntimeError(
