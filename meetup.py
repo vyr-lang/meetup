@@ -292,7 +292,7 @@ def run_meeting(directory: Path, agents: List[AgentConfig], tokens: Dict[str, st
                         flush=True,
                     )
                 elif action == "newmsg":
-                    new_id = apply_newmsg(directory, agent.name, total_messages, body or \"\")
+                    new_id = apply_newmsg(directory, agent.name, total_messages, body or "")
                     total_messages += 1
                     new_message_created = True
                     print(
