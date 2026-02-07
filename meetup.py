@@ -284,13 +284,21 @@ def run_meeting(directory: Path, agents: List[AgentConfig], tokens: Dict[str, st
                     if state.current_id <= total_messages:
                         state.current_id += 1
                 elif action == "reply":
-                    apply_reply(directory, agent.name, state.current_id, total_messages, body or "")
+                    new_id = apply_reply(directory, agent.name, state.current_id, total_messages, body or "")
                     total_messages += 1
                     new_message_created = True
+                    print(
+                        f\"[newmsg] type=reply id={new_id} reply_to={state.current_id} from={agent.name}\",
+                        flush=True,
+                    )
                 elif action == "newmsg":
-                    apply_newmsg(directory, agent.name, total_messages, body or "")
+                    new_id = apply_newmsg(directory, agent.name, total_messages, body or \"\")
                     total_messages += 1
                     new_message_created = True
+                    print(
+                        f\"[newmsg] type=newmsg id={new_id} from={agent.name}\",
+                        flush=True,
+                    )
 
                 state.initialized = True
                 break
