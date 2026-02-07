@@ -62,7 +62,6 @@ class MistralProvider(AgentProvider):
         response = client.chat.complete(
             model=model,
             messages=history,
-            tools=[{"type": "web_search"}],
         )
 
         text = self._extract_text(response)
