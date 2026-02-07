@@ -296,6 +296,10 @@ def run_meeting(
                 action, body, reply_to = parse_response(response.text)
 
                 if action == "invalid":
+                    print(
+                        f"[debug] ill-formed response from {agent.name}; re-prompting",
+                        flush=True,
+                    )
                     prompt = (
                         "ERROR: Response ill-formed. Please respond with <reply>...</reply>, "
                         "<newmsg>...</newmsg>, or <next/>.\n\n"
