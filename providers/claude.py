@@ -74,7 +74,7 @@ class ClaudeProvider(AgentProvider):
         history.append({"role": "user", "content": prompt})
         response = client.messages.create(
             model=model,
-            max_tokens=500,
+            max_tokens=5000,
             tools=[
                 {
                     "type": "web_search_20250305",
