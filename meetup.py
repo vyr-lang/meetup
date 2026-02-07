@@ -9,6 +9,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -220,6 +221,32 @@ def run_meeting(directory: Path, agents: List[AgentConfig], tokens: Dict[str, st
     total_messages = max(ids)
     states = {agent.name: AgentState(current_id=1) for agent in agents}
 
+    logs_dir = directory / "logs"
+    logs_dir.mkdir(exist_ok=True)
+
+    def log_exchange(agent: AgentConfig, prompt: str, response_text: str) -> None:
+        name_map = {
+            "openai": "chatgpt",
+            "gemini": "gemini",
+            "grok": "grok",
+            "claude": "claude",
+            "deepseek": "deepseek",
+            "mistral": "mistral",
+            "simple_http": "simple_http",
+            "mock": "mock",
+        }
+        safe_name = name_map.get(agent.provider.lower(), agent.provider.lower())
+        log_path = logs_dir / f"{safe_name}.log"
+        timestamp = datetime.now().isoformat(timespec="seconds")
+        entry = (
+            f"=== {timestamp} ===\n"
+            f"[request]\n{prompt}\n\n"
+            f"[response]\n{response_text}\n"
+            f"=== end ===\n\n"
+        )
+        with open(log_path, "a", encoding="utf-8") as handle:
+            handle.write(entry)
+
     while True:
         new_message_created = False
         for agent in agents:
@@ -242,6 +269,7 @@ def run_meeting(directory: Path, agents: List[AgentConfig], tokens: Dict[str, st
                 print(f"[debug] calling {agent.name}", flush=True)
                 response = provider.request(agent, prompt, token)
                 print(f"[debug] completed response from {agent.name}", flush=True)
+                log_exchange(agent, prompt, response.text)
                 action, body = parse_response(response.text)
 
                 if action == "invalid":
