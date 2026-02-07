@@ -59,6 +59,8 @@ def inner_xml(fragment: str) -> str:
         return html.escape(fragment)
     parts = []
     for child in wrapper:
+        if child.tag in {"from", "subject"}:
+            continue
         parts.append(ET.tostring(child, encoding="unicode"))
     return "\n".join(parts)
 
