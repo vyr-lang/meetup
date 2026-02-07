@@ -265,6 +265,8 @@ def run_meeting(
         new_message_created = False
         for agent in agents:
             state = states[agent.name]
+            if state.credits <= 0:
+                continue
             provider = provider_map.get(agent.provider)
             if not provider:
                 raise RuntimeError(f"Unknown provider: {agent.provider}")
