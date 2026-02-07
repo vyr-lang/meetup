@@ -17,7 +17,10 @@ from provider_base import AgentConfig, AgentProvider
 from providers import PROVIDERS
 
 
-REPLY_RE = re.compile(r"^\s*<reply>(?P<body>.*)</reply>\s*$", re.DOTALL | re.IGNORECASE)
+REPLY_RE = re.compile(
+    r"^\s*<reply\s+reply_to\s*=\s*\"?(?P<reply_to>\d+)\"?\s*>(?P<body>.*)</reply>\s*$",
+    re.DOTALL | re.IGNORECASE,
+)
 NEWMSG_RE = re.compile(r"^\s*<newmsg>(?P<body>.*)</newmsg>\s*$", re.DOTALL | re.IGNORECASE)
 NEXT_RE = re.compile(r"^\s*<next\s*/>\s*$", re.IGNORECASE)
 
@@ -26,6 +29,7 @@ NEXT_RE = re.compile(r"^\s*<next\s*/>\s*$", re.IGNORECASE)
 class AgentState:
     current_id: int
     initialized: bool = False
+    credits: int = 0
 
 
 def load_agents(path: str) -> List[AgentConfig]:
@@ -109,13 +113,13 @@ def build_intro(agent: AgentConfig, others: List[AgentConfig]) -> str:
         "The meeting is arranged into a series of messages in an email-like discussion format.\n\n"
         "You will interact with the meeting by responding with commands with a particular format.\n\n"
         "You will be informed how many unread messages and new messages you have in your inbox.\n\n"
-        "The first message (message id #1) will then be displayed.\n\n"
+        "All of the current unread messages in your inbox will be displayed.\n\n"
         "You will then be given three options:\n\n"
-        "1. Reply to the message\n"
+        "1. Reply to one of the messages\n"
         "2. Write a new message\n"
-        "3. Mark this message as read and read the next message\n\n"
-        "To reply to the current message (1.) you will format your response in the following format:\n\n"
-        "<reply>\n"
+        "3. Mark these messages as read and wait for new messages\n\n"
+        "To reply to a message (1.) you will format your response in the following format:\n\n"
+        "<reply reply_to=N>\n"
         "  <subject>The title of your reply</subject>\n"
         "  <quote>Quote something from the message you are replying to if you like</quote>\n"
         "  <p>Write what you want to say in your reply here</p>\n"
@@ -123,6 +127,7 @@ def build_intro(agent: AgentConfig, others: List[AgentConfig]) -> str:
         "  <p>Write some more stuff</p>\n"
         "  <p>And some more stuff</p>\n"
         "</reply>\n\n"
+        "Where N is the msg id of the message you wish to reply to.\n\n"
         "To write a new message format (2.) format it as follows:\n\n"
         "<newmsg>\n"
         "  <subject>Subject of your new message</subject>\n"
@@ -145,38 +150,42 @@ def build_prompt(
     agent: AgentConfig,
     state: AgentState,
     total_messages: int,
-    message_body: str,
+    unread_messages: List[Tuple[int, str]],
     include_intro: bool,
     others: List[AgentConfig],
 ) -> str:
-    unread = max(total_messages - state.current_id, 0)
+    unread = max(total_messages - state.current_id + 1, 0)
     prompt_parts = []
     if include_intro:
         prompt_parts.append(build_intro(agent, others))
     prompt_parts.append(f"You have {unread} unread messages.")
-    if message_body:
-        prompt_parts.append(f"Message #{state.current_id}:\n{message_body}")
+    prompt_parts.append(f"You have {state.credits} message credits remaining.")
+    if unread_messages:
+        rendered = []
+        for msg_id, body in unread_messages:
+            rendered.append(f"Message #{msg_id}:\n{body}")
+        prompt_parts.append("\n\n".join(rendered))
     else:
-        prompt_parts.append("There are no more messages to display.")
+        prompt_parts.append("There are no unread messages to display.")
     prompt_parts.append(
         "Options:\n"
-        "1. Reply to the message\n"
+        "1. Reply to one of the messages\n"
         "2. Write a new message\n"
-        "3. Mark this message as read and read the next message"
+        "3. Mark these messages as read and wait for new messages"
     )
     return "\n\n".join(prompt_parts).strip()
 
 
-def parse_response(text: str) -> Tuple[str, Optional[str]]:
+def parse_response(text: str) -> Tuple[str, Optional[str], Optional[int]]:
     if NEXT_RE.match(text):
-        return "next", None
+        return "next", None, None
     reply_match = REPLY_RE.match(text)
     if reply_match:
-        return "reply", reply_match.group("body").strip()
+        return "reply", reply_match.group("body").strip(), int(reply_match.group("reply_to"))
     new_match = NEWMSG_RE.match(text)
     if new_match:
-        return "newmsg", new_match.group("body").strip()
-    return "invalid", None
+        return "newmsg", new_match.group("body").strip(), None
+    return "invalid", None, None
 
 
 def apply_reply(
@@ -209,7 +218,12 @@ def apply_newmsg(directory: Path, agent_name: str, total_messages: int, body: st
     return new_id
 
 
-def run_meeting(directory: Path, agents: List[AgentConfig], tokens: Dict[str, str]) -> None:
+def run_meeting(
+    directory: Path,
+    agents: List[AgentConfig],
+    tokens: Dict[str, str],
+    credits: int,
+) -> None:
     if not agents:
         raise RuntimeError("No agents configured.")
 
@@ -219,7 +233,7 @@ def run_meeting(directory: Path, agents: List[AgentConfig], tokens: Dict[str, st
         raise RuntimeError("No msgN.txt files found in the directory.")
 
     total_messages = max(ids)
-    states = {agent.name: AgentState(current_id=1) for agent in agents}
+    states = {agent.name: AgentState(current_id=1, credits=credits) for agent in agents}
 
     logs_dir = directory / "logs"
     logs_dir.mkdir(exist_ok=True)
@@ -256,45 +270,75 @@ def run_meeting(directory: Path, agents: List[AgentConfig], tokens: Dict[str, st
                 raise RuntimeError(f"Unknown provider: {agent.provider}")
             token = resolve_token(agent, tokens)
 
+            unread_messages: List[Tuple[int, str]] = []
             if state.current_id <= total_messages:
-                message_body = read_message(directory, state.current_id)
-            else:
-                message_body = ""
+                for msg_id in range(state.current_id, total_messages + 1):
+                    unread_messages.append((msg_id, read_message(directory, msg_id)))
 
             include_intro = not state.initialized
             others = [other for other in agents if other.name != agent.name]
-            prompt = build_prompt(agent, state, total_messages, message_body, include_intro, others)
+            prompt = build_prompt(
+                agent,
+                state,
+                total_messages,
+                unread_messages,
+                include_intro,
+                others,
+            )
 
             while True:
                 print(f"[debug] calling {agent.name}", flush=True)
                 response = provider.request(agent, prompt, token)
                 print(f"[debug] completed response from {agent.name}", flush=True)
                 log_exchange(agent, prompt, response.text)
-                action, body = parse_response(response.text)
+                action, body, reply_to = parse_response(response.text)
 
                 if action == "invalid":
                     prompt = (
                         "ERROR: Response ill-formed. Please respond with <reply>...</reply>, "
                         "<newmsg>...</newmsg>, or <next/>.\n\n"
-                        + build_prompt(agent, state, total_messages, message_body, False, others)
+                        + build_prompt(agent, state, total_messages, unread_messages, False, others)
                     )
                     continue
 
                 if action == "next":
-                    if state.current_id <= total_messages:
-                        state.current_id += 1
+                    state.current_id = total_messages + 1
                 elif action == "reply":
-                    new_id = apply_reply(directory, agent.name, state.current_id, total_messages, body or "")
+                    if state.credits <= 0:
+                        prompt = (
+                            "ERROR: You have no message credits remaining. Respond with <next/>.\n\n"
+                            + build_prompt(agent, state, total_messages, unread_messages, False, others)
+                        )
+                        continue
+                    if (
+                        reply_to is None
+                        or reply_to < state.current_id
+                        or reply_to > total_messages
+                    ):
+                        prompt = (
+                            "ERROR: Invalid reply_to id. Choose a message id from your inbox.\n\n"
+                            + build_prompt(agent, state, total_messages, unread_messages, False, others)
+                        )
+                        continue
+                    new_id = apply_reply(directory, agent.name, reply_to, total_messages, body or "")
                     total_messages += 1
                     new_message_created = True
+                    state.credits -= 1
                     print(
-                        f"[newmsg] type=reply id={new_id} reply_to={state.current_id} from={agent.name}",
+                        f"[newmsg] type=reply id={new_id} reply_to={reply_to} from={agent.name}",
                         flush=True,
                     )
                 elif action == "newmsg":
+                    if state.credits <= 0:
+                        prompt = (
+                            "ERROR: You have no message credits remaining. Respond with <next/>.\n\n"
+                            + build_prompt(agent, state, total_messages, unread_messages, False, others)
+                        )
+                        continue
                     new_id = apply_newmsg(directory, agent.name, total_messages, body or "")
                     total_messages += 1
                     new_message_created = True
+                    state.credits -= 1
                     print(
                         f"[newmsg] type=newmsg id={new_id} from={agent.name}",
                         flush=True,
@@ -312,6 +356,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dir", required=True, help="Directory containing msgN.txt files")
     parser.add_argument("--agents", required=True, help="Path to agents JSON config")
     parser.add_argument("--keys", default=None, help="Path to JSON file containing per-agent tokens")
+    parser.add_argument(
+        "--credits",
+        type=int,
+        default=3,
+        help="Message credits per agent (sending a reply or new message costs 1 credit)",
+    )
     return parser.parse_args()
 
 
@@ -323,7 +373,7 @@ def main() -> int:
 
     agents = load_agents(args.agents)
     tokens = load_tokens(args.keys)
-    run_meeting(directory, agents, tokens)
+    run_meeting(directory, agents, tokens, args.credits)
     print("Meeting complete.")
     return 0
 
