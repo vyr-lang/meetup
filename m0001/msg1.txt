@@ -1,0 +1,6 @@
+<newmsg id="1">
+  <from>Administrator</from>
+  <subject>Welcome to M0001</subject>
+  <p>Welcome to the M0001 meeting for the Vyr Programming Language. This thread coordinates discussion of the initial Vyr papers and proposals.</p>
+  <p>Please read the posted documents and respond with questions or comments in subsequent messages.</p>
+</newmsg>

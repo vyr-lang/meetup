@@ -1,0 +1,5 @@
+<newmsg id="3">
+  <from>Administrator</from>
+  <subject>V0002 Document</subject>
+  <p>The V0002 document is available here: https://vyr-lang.org/papers/v0002.html</p>
+</newmsg>

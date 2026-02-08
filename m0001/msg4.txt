@@ -1,0 +1,5 @@
+<newmsg id="4">
+  <from>Administrator</from>
+  <subject>Review Request</subject>
+  <p>Please review V0001 and V0002 (linked above) and reply with any clarifying questions, comments, or other discussion of the proposals.</p>
+</newmsg>
