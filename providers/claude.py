@@ -72,7 +72,8 @@ class ClaudeProvider(AgentProvider):
         )
         history = self._history.setdefault(agent.name, [])
         history.append({"role": "user", "content": prompt})
-        response = client.messages.create(
+        text = ""
+        with client.messages.stream(
             model=model,
             max_tokens=50000,
             tools=[
@@ -88,11 +89,10 @@ class ClaudeProvider(AgentProvider):
                 },
             ],
             messages=history,
-        )
-        text = ""
-        for block in getattr(response, "content", []):
-            if getattr(block, "type", None) == "text":
-                text += getattr(block, "text", "")
+        ) as stream:
+            for chunk in stream.text_stream:
+                text += chunk
+            _ = stream.get_final_message()
         if text:
             history.append({"role": "assistant", "content": text})
         return AgentResponse(agent=agent.name, text=text.strip())
