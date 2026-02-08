@@ -12,6 +12,8 @@ import xml.etree.ElementTree as ET
 
 
 _ENTITY_RE = re.compile(r"&(#\d+|#x[0-9a-fA-F]+|[A-Za-z]+);")
+_ATTACHMENT_RE = re.compile(r"<attachment>.*?</attachment>", re.DOTALL | re.IGNORECASE)
+_ROOT_RE = re.compile(r"<(reply|newmsg)\b([^>]*)>(.*)</\1>", re.DOTALL | re.IGNORECASE)
 
 
 def sanitize_xml(text: str) -> str:
@@ -53,6 +55,7 @@ def extract_tag_text(fragment: str, tag: str) -> str:
 
 
 def inner_xml(fragment: str) -> str:
+    fragment = _ATTACHMENT_RE.sub("<attachment/>", fragment)
     try:
         wrapper = ET.fromstring(f"<root>{fragment}</root>")
     except ET.ParseError:
@@ -60,6 +63,9 @@ def inner_xml(fragment: str) -> str:
     parts = []
     for child in wrapper:
         if child.tag in {"from", "subject"}:
+            continue
+        if child.tag == "attachment":
+            parts.append("<p><em>ATTACHMENT REMOVED</em></p>")
             continue
         parts.append(ET.tostring(child, encoding="unicode"))
     return "\n".join(parts)
@@ -89,7 +95,22 @@ def parse_message(path: Path) -> Message:
         try:
             root = ET.fromstring(sanitized)
         except ET.ParseError as exc:
-            raise ValueError(f"Failed to parse {path.name}: {exc}") from exc
+            root = None
+
+    if root is None:
+        match = _ROOT_RE.search(text)
+        if not match:
+            raise ValueError(f"Failed to parse {path.name}: not a valid message wrapper")
+        tag = match.group(1).lower()
+        attrs = match.group(2)
+        inner = match.group(3)
+        id_match = re.search(r"id\s*=\s*\"?(\d+)\"?", attrs)
+        if not id_match:
+            raise ValueError(f"{path.name} is missing id attribute")
+        msg_id = int(id_match.group(1))
+        reply_match = re.search(r"reply_to\s*=\s*\"?(\d+)\"?", attrs)
+        reply_to_id = int(reply_match.group(1)) if reply_match else None
+        return Message(msg_id, reply_to_id, tag, inner)
 
     msg_id_attr = root.attrib.get("id")
     if not msg_id_attr:
