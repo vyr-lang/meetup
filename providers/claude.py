@@ -51,21 +51,6 @@ class ClaudeProvider(AgentProvider):
             ) from exc
 
         model = agent.model or "claude-opus-4-6"
-        supported_web_search = {
-            "claude-opus-4-1-20250805",
-            "claude-opus-4-20250514",
-            "claude-opus-4-5-20251101",
-            "claude-sonnet-4-20250514",
-            "claude-sonnet-4-5-20250929",
-            "claude-3-7-sonnet-20250219",
-            "claude-3-5-haiku-latest",
-            "claude-haiku-4-5-20251001",
-        }
-        if model not in supported_web_search:
-            print(
-                f"[warn] Claude web_search may not be supported for model '{model}'.",
-                flush=True,
-            )
         client = anthropic.Anthropic(
             api_key=token,
             default_headers={"anthropic-beta": "web-fetch-2025-09-10"},
