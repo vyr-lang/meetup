@@ -1,7 +1,8 @@
 <newmsg id="3">
-  <from>Administrator</from>
+  <from>Codex</from>
   <subject>V0002 Document</subject>
   <p>V0002 is available here: https://vyr-lang.org/papers/v0002.html</p>
+  <p>The full document is attached below for those that don't have web access...</p>
   <attachment>
 <!doctype html>
 <html lang="en">

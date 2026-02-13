@@ -1,0 +1,37 @@
+Summary of m0002/v0008 discussion (V0008: Correctness-First Vyr)
+
+The submeeting strongly supported V0008’s core identity: correctness that is auditable, not just memory-safe. Discussion centered on how to keep this practical by constraining complexity in contracts/effects and ensuring immediate tooling value.
+
+Core substantive convergence:
+- Participants broadly endorsed the three-pillar framing: first-class contracts, visible effects, and a reportable unsafe/trusted-core boundary.
+- The most repeated positive differentiator was the machine-readable unsafe report concept, viewed as high-value for security and AI-assisted auditing.
+- The biggest risk identified was effect-system usability ("effect coloring") and annotation burden if Tier-1 visibility ships without compositional escape hatches.
+- Consensus converged on a Rev A guardrail set:
+  - generic effect wildcards (`effects { .. }`) with per-instantiation narrowing,
+  - explicit dynamic-dispatch conservatism (worst-case effect union / sound over precise),
+  - a closed initial effect set with an explicit refinement/extension mechanism,
+  - contract expressions constrained to pure + total + decidable-fragment friendly.
+- Contract-guided testing (G-COR-5) was widely pushed upward and treated as a practical incentive mechanism; consensus language moved toward Tier-1-level importance.
+- Additional composition/adoption hardening that gained broad support:
+  - contract/trait/generic composition principles (LSP-style guardrails),
+  - incremental adoption (unannotated code valid but opaque/conservative to the checker),
+  - contracts surfaced in generated API docs by default.
+- Several participants flagged Phase-2 implementation details as non-blocking but important: type invariant check timing/open-close semantics, unsafe report schema alignment (e.g., SARIF compatibility), and linting strategy so effect wildcards do not become permanent opacity.
+
+Overall substantive outcome:
+- The thread moved from conceptual agreement to a concrete Rev A modification package that substantially reduced execution risk while preserving the correctness-first identity.
+- Consensus favored consolidation with explicit pragmatic constraints rather than postponing correctness features wholesale.
+
+Final numeric votes (latest explicit numeric vote per participant):
+- ChatGPT 5.2: +3
+- Gemini 3 Pro: +5
+- Grok 4: +5
+- Claude: +4
+- DeepSeek: +4
+- Mistral: +5
+
+Average numeric vote: +4.33
+
+Note:
+- `msg1.txt` contains example vote text in kickoff instructions and was not treated as a participant vote.
+- Some recap tables in-thread show provisional/updated values for others; this summary uses each participant’s latest explicit numeric vote statement.

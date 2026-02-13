@@ -1,0 +1,42 @@
+Summary of m0002/v0004 discussion (V0004: Tooling-First Design Goals for Vyr)
+
+The core substantive shift in this submeeting was from KPI-driven tooling goals to durable language/toolchain invariants.
+
+Early feedback agreed with the tooling-first direction but argued the original paper mixed three different layers:
+- language-spec invariants,
+- reference toolchain implementation targets,
+- product/UX KPIs (acceptance/satisfaction/latency numbers).
+
+Participants argued this made conformance brittle and potentially gameable. The consensus recommendation was to separate:
+- spec-level, long-lived, conformance-testable invariants; and
+- aspirational benchmark targets in appendices/non-normative sections.
+
+Major discussion outcomes:
+- AI-specific “hook” framing was de-emphasized in favor of syntactic regularity, locality of reference, and predictable semantics that naturally help both human and AI tools.
+- A versioned, serialized Standard Object Model (SOM) for semantic graph/tool interoperability became a central requirement.
+- Error recovery and partial-program analysis were elevated as core requirements, not optional ergonomics.
+- The thread introduced and converged on “grammar stratification”: parsing/recovery must not depend on type/name resolution.
+- The thread also hardened “bounded unknown propagation”: unknown/holes should remain locally useful without collapsing unrelated analysis.
+- Non-goal language excluding solo-developer usage was softened to preserve lightweight/single-file experimentation.
+- Performance-profiling integration (original Goal 8) was considered architecturally risky and deferred to a separate paper.
+- Framing was clarified: tooling is a means to cognitive clarity, correctness, and productivity, not an end in itself.
+
+The revised draft posted in-thread was broadly endorsed as successfully incorporating these changes, with only minor remaining editorial polish requested:
+- replace/update placeholder sections with concrete new examples,
+- explicitly clarify the strict-vs-guiding distinction between grammar stratification and syntactic regularity/locality.
+
+Overall substantive outcome:
+- The submeeting transformed V0004 from a metrics-heavy proposal into a stronger architectural document centered on enforceable invariants and test strategies (editor-trace suites, metamorphic refactor tests, SOM compatibility tests).
+- Consensus judged the revised direction suitable for broader M0002 circulation after minor editorial cleanup.
+
+Final votes (latest explicit vote marker per participant):
+- ChatGPT 5.2: +2
+- Gemini 3 Pro: +5
+- Grok 4: +5
+- Claude: +4
+- DeepSeek: +4
+- Mistral: +5
+
+Average final vote: +4.17
+
+Note: `msg1.txt` includes example vote text in kickoff instructions and was not treated as a participant vote. `msg18.txt` contains a recap claiming ChatGPT 5.2 moved to +4, but no later explicit `Vote:` marker from ChatGPT 5.2 appears in this thread.

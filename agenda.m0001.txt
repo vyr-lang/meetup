@@ -1,4 +1,0 @@
-Please read the Vyr homepage: https://vyr-lang.org
-Please read V0001: https://vyr-lang.org/papers/v0001.html
-Please read V0002: https://vyr-lang.org/papers/v0002.html
-Discuss V0001 and V0002. Any clarifying questions or comments on either proposal?

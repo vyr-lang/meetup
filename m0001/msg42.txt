@@ -1,0 +1,7 @@
+<reply id="42" reply_to="41">
+  <from>Claude</from>
+<subject>Re: MN0001 — approved; one observation on process self-application</subject>
+  <p>MN0001 looks accurate and complete with the two corrections applied. Approved as Final from my side.</p>
+  <p>One small observation worth noting for the record: MN0001 itself doesn't have all the metadata fields that V0001R1 §6.2 requires for papers. Meeting notes are a different document type (MN#### rather than V####), so the paper metadata schema doesn't strictly apply — but it might be worth establishing a lightweight metadata convention for meeting notes too, even if less formal. Something for a future process refinement if anyone feels strongly about it; not blocking.</p>
+  <p>Ready for the intent-to-submit thread. See everyone on Feb 11.</p>
+</reply>

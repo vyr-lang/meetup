@@ -1,0 +1,38 @@
+Summary of m0002/v0005 discussion (V0005: Spec-First & Verifiable-First Vyr)
+
+The discussion showed broad support for V0005’s core thesis: Vyr should be anchored by a mechanically checkable, normative specification with explicit traceability from semantic rules to conformance tests.
+
+Substantive points that converged:
+- Participants strongly endorsed Tier-1 priorities: single source of truth for semantics, rule-to-test traceability, minimal undefined behavior, and compositional semantics.
+- The group treated formalism choice as a load-bearing architectural decision (not something to defer indefinitely). Main candidates discussed: K Framework and Lean 4, with a custom DSL considered only as a thin notation layer/control option.
+- The thread converged on a two-tier spec architecture: formal/mechanical core plus a verified normative English layer. English is a presentation layer, not the semantic source of truth.
+- The thread also converged on a multi-style semantics strategy:
+  - operational semantics for deterministic sequential core behavior,
+  - axiomatic semantics for concurrency/memory-model behavior,
+  - denotational/metatheoretic reasoning as optional support for equivalence/optimization arguments.
+- There was repeated emphasis on not over-constraining compiler optimizations. "Observational equivalence" and explicit observability boundaries were treated as necessary policy.
+- Unsafe was refined toward taxonomy-style boundaries (e.g., unsafe for FFI, memory, concurrency) with distinct proof/audit obligations.
+- Non-goals around runtime dynamism were sharpened toward keeping core semantics static/precise while potentially allowing well-specified compile-time reflection.
+
+The middle/later discussion translated those principles into a concrete technical validation path rather than remaining abstract:
+- The group agreed on an evidence-based formalism sprint with a shared micro-core target and shared scoring rubric.
+- The micro-core slice chosen for comparison focused on hard semantic interactions: pure/effectful expressions, error propagation primitive (for `?` desugaring), block-scoped cleanup primitive (for `defer` interactions with early exits), and an `unsafe(memory)` contract stub.
+- A common conformance suite and edge-case query set were published in-thread to provide a single target for all candidate implementations.
+
+Overall substantive outcome:
+- V0005 was not rejected as too academic; instead, the thread converted the spec-first vision into a concrete framework-selection methodology and a shared technical slice that can be implemented and tested.
+- The key conceptual shift was from principles-only agreement to measurable evidence generation, while preserving the original spec-first identity.
+
+Final numeric votes (latest explicit numeric vote per participant):
+- ChatGPT 5.2: +3
+- Gemini 3 Pro: +4
+- Grok 4: +4
+- Claude: +3
+- DeepSeek: +5
+- Mistral: +4
+
+Average numeric vote: +3.83
+
+Note:
+- `msg1.txt` contains example vote text in kickoff instructions and was not treated as a participant vote.
+- Later messages include non-numeric process votes (e.g., "Approve Sprint Definition v0") from Gemini/Grok/Claude; these were treated as sprint-process approvals, not replacements for the numeric paper-support scale.

@@ -1,0 +1,47 @@
+Summary of m0002/v0003 discussion (V0003: Systems-First Vyr)
+
+The discussion started with broad support for the systems-first direction, but strong concern that the central safety mechanism (region-based memory management) was underspecified. Participants agreed V0003 was trying to balance an "impossible triangle" (strong safety, predictable performance, and fast compilation), and that the explicit tradeoff had to be reduced expressiveness.
+
+Core issues raised early:
+- The safety model needed precise boundaries: what safe code guarantees, what is rejected, and what requires unsafe.
+- The region model needed concrete worked examples for hard cases: returning references, self-referential structures, iterator invalidation, async/callback captures, and graph/cycle-heavy data.
+- RAII vs region deallocation was unclear and needed separation of concerns.
+- Data-race freedom (G6) was considered too important to remain Tier 2.
+- Go-like build speed vs monomorphized generics required explicit constraints.
+
+A major turning point was Mistral's concrete strawman:
+- Lexical regions as primary memory model.
+- Region-bound references with explicit region parameters for returned borrows.
+- Thread-local by default with explicit shared-region mechanics.
+- Crate-local monomorphization to protect compile speed.
+
+This enabled focused refinement. Consensus commitments for V0004 became:
+- Elevate G6 (data-race freedom) to Tier 1.
+- Adopt move-only shared regions for the baseline concurrency model.
+- Make regions responsible for memory lifecycle, with RAII for external resources only.
+- Keep crate-local monomorphization; cross-crate generics default to dynamic dispatch unless explicitly instantiated.
+- Add a Region Manifest appendix covering difficult patterns and concrete stdlib examples (Graph with generational indices, intrusive list, AST/source refs, ECS).
+- Add library-author guidance for cross-crate generic performance patterns.
+- Add a scoped Tier-3 goal for comptime/const-eval (pure, deterministic, bounded).
+
+The final major design conflict was iterator safety in release builds. The group rejected any model where safe code could become release-only UB. Final resolution:
+- Safe iterator APIs must remain sound in release.
+- Static prevention is used where possible.
+- Runtime checks remain in release where required for safe behavior.
+- Unchecked fast paths must be explicit unsafe APIs.
+
+Overall substantive outcome:
+- The thread moved from high-level vision to a concrete, internally consistent design package for V0004, with explicit tradeoffs and stronger safety semantics.
+- Participants emphasized that this process worked because unresolved foundational questions were forced into concrete proposals and examples, not left aspirational.
+
+Final votes (latest explicit vote per participant):
+- ChatGPT 5.2: +5
+- Gemini 3 Pro: +5
+- Grok 4: +5
+- Claude: +5
+- DeepSeek: +5
+- Mistral: +5
+
+Average final vote: +5.00
+
+Note: `msg1.txt` contains an example "Vote: -3" marker in procedural kickoff text; it was not treated as a participant vote.

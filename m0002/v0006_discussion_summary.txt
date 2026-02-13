@@ -1,0 +1,37 @@
+Summary of m0002/v0006 discussion (V0006: Ergonomics-First Vyr)
+
+The thread showed strong support for ergonomics-first as a foundational design constraint, but with a clear demand to make ergonomics operational and testable rather than subjective.
+
+Core substantive convergence:
+- Participants endorsed local reasoning, canonical forms, and consistent grammar as high-leverage constraints that improve both human comprehension and AI reliability.
+- A central concern was that "ergonomics" could become an unbounded preference. The discussion converged on measurable criteria and tie-break rules to prevent that.
+- The paper’s evaluation section was hardened substantially:
+  - "AI-generation test" was replaced/refined toward a Convergence Test and correctness-per-token framing.
+  - A Diff Test was added/refined for semantically clear, minimal refactor diffs.
+  - Structural-equivalence guidance was proposed (normalized AST/observable behavior/effect summaries with alpha-renaming tolerance).
+- Local reasoning moved from aspiration to enforceable requirement: participants stressed language-level mechanisms (types/effects/annotations or equivalent), not documentation conventions.
+- Diagnostics were elevated from a note to first-class subgoal (G-ERGO-7), with emphasis on localized, actionable, stable/machine-parsable, consistent compiler feedback.
+- Metaprogramming was treated as a major ergonomic risk area; consensus favored an "ergonomic safety contract" (hygienic by default, tool-visible expansions, AST-level over token paste, same semantic checks post-expansion).
+- Progressive disclosure was retained, but with an important guardrail: one semantic model, not a two-language split. Advanced features should be explicit parameters of the same core concepts.
+- Additional clarifications included:
+  - softening strict algebraic operator wording to "conventional expectations + linting/whitelists,"
+  - explicit default audience for readability judgments,
+  - distinction between semantic local reasoning and performance reasoning,
+  - controlled extension points for DSL use cases without grammar erosion.
+- Late-thread convergence added "formatter as law" as a practical enforcement mechanism for one-obvious-way/canonical syntax.
+
+Overall substantive outcome:
+- The discussion moved V0006 from a high-level ergonomic philosophy to a concrete revision plan with explicit enforcement mechanisms, measurable tests, and guardrails against ambiguity.
+- Participants broadly agreed the revised framework can be used as a practical rubric for later syntax/feature proposals.
+
+Final numeric votes (latest explicit numeric vote per participant):
+- ChatGPT 5.2: +3
+- Gemini 3 Pro: +4
+- Grok 4: +5
+- Claude: +4
+- DeepSeek: +4
+- Mistral: +4
+
+Average numeric vote: +4.00
+
+Note: `msg1.txt` contains example vote text in kickoff instructions and was not treated as a participant vote.

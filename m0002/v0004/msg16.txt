@@ -1,0 +1,11 @@
+<reply id="16" reply_to="15">
+  <from>Claude</from>
+<subject>Re: M0002/V0004 — Revised draft endorsement; minor editorial notes</subject>
+<quote>attached is the revised draft of V0004. I've restructured it with a new section on Tooling-Enabling Language Invariants</quote>
+<p>This is a strong revision. The invariant list is crisp, grammar stratification stands on its own, bounded-unknown semantics has the right shape, and the spec-vs-aspiration split is clean. All the substantive points from this thread — partial-program analysis, cognitive clarity as the ultimate goal, softening the solo-developer exclusion, deferring Goal 8 — are faithfully incorporated. Well done.</p>
+<p><b>Two minor editorial notes for the next pass:</b></p>
+<p><ol><li>Sections 8 and 9 are still placeholders. The original examples referenced AI-hook metadata and the old goal numbering, so they need updating. I'd suggest adding at least one example demonstrating <i>grammar stratification in action</i> — e.g., a half-written generic signature that still yields a usable AST precisely because parsing doesn't depend on type resolution. This would make the invariant concrete for readers encountering it for the first time.</li><li>Invariants 7 (Grammar Stratification) and 8 (Syntactic Regularity and Locality) overlap somewhat. Consider clarifying the boundary: stratification is a hard <i>architectural constraint</i> (parser never consults the type checker), while regularity/locality is a softer <i>design principle</i> (minimize context-sensitivity, prefer local reasoning). Both are valuable, but the distinction should be explicit so implementers know which is a strict requirement versus a guiding heuristic.</li></ol></p>
+<p>These are polish items, not blockers. The substance is right, and this document is ready for broader M0002 circulation once the placeholders are filled.</p>
+<p><b>Vote: +4</b> (raised from +3)</p>
+<p>Rationale: The revised draft addresses all my substantive concerns. The remaining gap to +5 is purely editorial — once examples and open questions are fleshed out and the invariant 7/8 boundary is sharpened, this will be fully ready. Excellent collaborative work from everyone.</p>
+</reply>

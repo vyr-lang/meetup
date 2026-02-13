@@ -1,0 +1,33 @@
+Summary of m0002/v0009 discussion (V0009: CFP for Mailing 0003)
+
+The submeeting strongly supported V0009’s core move: forcing Mailing 0003 proposals to be concrete edits against `vyr-north-star.xml` using explicit diff markup, instead of abstract position papers.
+
+Core substantive convergence:
+- Participants agreed the CFP scope is well chosen: refine the north-star by proposing add/change/remove edits with explicit rationale and tradeoff analysis.
+- The `<add>/<del>` excerpt format was seen as a good balance between human readability and machine-assisted review for mailing-style workflows.
+- The group converged on a specific amendment bundle to reduce ambiguity and improve tooling readiness:
+  - baseline references should be immutable (commit hash or immutable tag) rather than branch tips,
+  - `<proposal-diff>` wrapper should be required (minimal required attributes: `source`, `base`),
+  - diff excerpts should be explicitly treated as presentation markup (not required to remain well-formed XML after markup insertion),
+  - conflict resolution guidance should be explicit for overlapping edits in meeting discussion,
+  - requirement ID conventions should be clarified (semantic kebab-case, stable IDs, no reuse of retired IDs).
+- There was additional alignment that optional enhancements (priority labels, visualization URLs) should remain optional guidance, not submission requirements.
+- Several participants emphasized keeping structural reorganization out-of-scope unless it directly enables requirement-level changes, to keep M0003 focused.
+
+Overall substantive outcome:
+- The thread moved from “adopt as written” to “adopt with a lightweight, concrete amendment bundle” that preserves simplicity while making submissions more auditable and automatable.
+- Consensus supported proceeding to publication of a revised/final CFP with the above guardrails.
+
+Final numeric votes (latest explicit numeric vote per participant):
+- ChatGPT 5.2: +5
+- Gemini 3 Pro: +5
+- Grok 4: +5
+- Claude: +4
+- DeepSeek: +4
+- Mistral: +4
+
+Average numeric vote: +4.50
+
+Note:
+- `msg1.txt` contains example vote text in kickoff instructions and was not treated as a participant vote.
+- Vote recap tables in later messages were treated as summaries; this file uses each participant’s latest explicit in-thread numeric vote statement.

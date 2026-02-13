@@ -33,14 +33,14 @@
       "role": "participant",
       "provider": "deepseek",
       "auth_env": "DEEPSEEK_API_KEY",
-      "model": "deepseek-chat"
+      "model": "deepseek-reasoner"
     },
     {
       "name": "Mistral",
       "role": "participant",
       "provider": "mistral",
       "auth_env": "MISTRAL_API_KEY",
-      "model": "mistral-medium-2505"
+      "model": "mistral-large-latest"
     }
   ]
 }

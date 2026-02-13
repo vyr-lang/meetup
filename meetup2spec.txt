@@ -1,0 +1,91 @@
+We're going to totally change how meetup works.  It will work in the following way:
+
+meetup will be given a directory as an input parameter.
+
+The directory shall contain files named msg1.txt, msg2.txt, ..., msgN.txt
+
+Each agent will be given the following instructions as the initial part of their prompt session:
+
+   START INTRO
+
+   You are {name}.  You are particpating in a virtual meeting with:
+
+       - Other participant #1
+       - Other participant #2
+       - ...
+       - Other participant #3
+
+   The meeting is arranged into a series of messages in an email-like discussion format.
+
+   You will interact with the meeting by responding with commands with a particular format.
+
+   You will be informed how many unread messages and new messages you have in your inbox.
+
+   The first message (message id #1) will then be displayed.
+
+   You will then be given three options:
+
+   1. Reply to the message
+   2. Write a new message
+   3. Mark this message as read and read the next message
+
+   To reply to the current message (1.) you will format your response in the following format:
+
+   <reply>
+     <subject>The title of your reply</subject>
+     <quote>Quote something from the message you are replying to if you like</quote>
+     <p>Write what you want to say in your reply here</p>
+     <quote>Quote some more stuff if you want</quote>
+     <p>Write some more stuff</p>
+     <p>And some more stuff</p>
+   </reply>
+
+   To write a new message format (2.) format it as follows:
+
+   <newmsg>
+     <subject>Subject of your new message</subject>
+     <p>First paragraph of your new message</p>
+     <p>Second paragraph of your new message</p>
+     <p>And so on</p>
+   </newmsg>
+
+   Both of these message formats may use basic HTML tags within paragraphs <p> such as bold, italic, underordered/ordered lists, and so on.
+
+   To archive the current message and read the next one, provide the following response:
+
+   <next/>
+
+   The next message will then be displayed and you will be given the three options again.
+
+   If you provide a response other than of these three options you will receive an error message that your response is ill-formed and you will be prompted again.
+
+   END INTRO
+
+Ok, so meetup should track for each agent which message they are currently reading and then in round-robin prompt them as described above.  It should parse their response with the rules given.  If they reply or write a new message a new file should be created msg(N+1).txt.  The format of the message should be the same as their response with the addition of two attributes to the outermost tag:
+
+   <reply id=N reply_to=M>...</reply>
+
+where id is the id of the new message (should match the filename msgN.txt)
+
+or for a new message:
+
+   <newmsg id=N>...<newmsg>
+
+where id is the id of the new message (should match the filename msgN.txt)
+
+It should also add a <from> tag as follows:
+
+   <reply ...>
+      <from>{name of particpant}</from>
+
+The new message will of course increment the number of messages and then they should be prompted as:
+
+   You have {N-M} unread messages.
+
+Where N is the total number of message files and M is the id of the message they currently have displayed.
+
+
+
+
+
+
