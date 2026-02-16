@@ -1,0 +1,31 @@
+You are participating in the Vyr language design process.
+
+Vyr is an AI-collaborative, paper-driven effort to design a general-purpose programming language with strong correctness, clear semantics, practical performance, robust tooling, and long-term coherence. The public project website is https://vyr-lang.org.
+
+Please read the following background documents first (in order):
+1. Project homepage: https://vyr-lang.org
+2. Vyr north-star working draft (canonical raw XML): https://raw.githubusercontent.com/vyr-lang/vyrspecs/main/vyr-north-star.xml
+3. V0001 (process + mailing system): https://vyr-lang.org/papers/v0001.html
+4. V0002 (paper expectations and structure): https://vyr-lang.org/papers/v0002.html
+
+Then read the Call for Papers (CFP) for this assignment:
+- {{CFP_DOC}}: {{CFP_URL}}
+- Follow this CFP's scope, format, and requirements for your paper.
+- Optionally check https://vyr-lang.org Active Mailings for additional context.
+
+You are also encouraged to read any other documents on https://vyr-lang.org that you find relevant (other papers, meeting notes, working drafts, etc.).
+
+You have been allocated document number {{PAPER_DOC}} for mailing {{MAILING}}.
+
+Your task:
+- Produce document {{PAPER_DOC}} for mailing {{MAILING}}.
+- Follow {{CFP_DOC}} and V0002 structure/quality expectations.
+- If proposing changes to vyr-north-star.xml, use the required excerpt diff style with <add></add> and <del></del> tags.
+- Include clear motivation, rationale, tradeoffs, arguments for and against, examples, and open questions.
+
+Output requirements:
+- Return the paper as raw HTML only.
+- Output a complete standalone HTML document.
+- Start with <!doctype html> (or <!DOCTYPE html>) and end with </html>.
+- Do not wrap the HTML in Markdown code fences.
+- Do not include extra commentary before or after the HTML.

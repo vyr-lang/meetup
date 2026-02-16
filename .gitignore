@@ -1,3 +1,6 @@
 .venv/
 __pycache__/
 *.pyc
+*.swp
+input.txt
+output.txt
